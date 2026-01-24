@@ -23,7 +23,7 @@ class Scheduler:
         self.task_list.append(task)
 
     def start_executor_for(self, task, task_executor):
-        executor_thread = threading.Thread(target=task_executor.start, args=([task]))
+        executor_thread = threading.Thread(target=task_executor.start, args=([task]), daemon=True)
         executor_thread.start()
 
     def compute_next_cron(self, cron_expr):

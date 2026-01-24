@@ -171,64 +171,88 @@ def set_runtime_thresholds(req: RuntimeThresholds):
 @server.get("/api/update-status")
 def get_update_status():
     try:
-        repo_root = None
-        base = os.path.abspath(os.path.dirname(__file__))
-        for _ in range(8):
-            if os.path.isdir(os.path.join(base, '.git')):
-                repo_root = base
-                break
-            parent = os.path.dirname(base)
-            if parent == base:
-                break
-            base = parent
-        if repo_root is None:
-            tl = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=os.getcwd(), timeout=5)
-            if tl.returncode == 0 and os.path.isdir(tl.stdout.strip()):
-                repo_root = tl.stdout.strip()
+        with open("debug_update_handler.log", "a", encoding="utf-8") as log_file:
+            def dlog(msg):
+                log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
+                log_file.flush()
+
+            dlog("--- Checking update status ---")
+            repo_root = None
+            base = os.path.abspath(os.path.dirname(__file__))
+            for _ in range(8):
+                if os.path.isdir(os.path.join(base, '.git')):
+                    repo_root = base
+                    break
+                parent = os.path.dirname(base)
+                if parent == base:
+                    break
+                base = parent
+            
+            if repo_root is None:
+                tl = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=os.getcwd(), timeout=5)
+                if tl.returncode == 0 and os.path.isdir(tl.stdout.strip()):
+                    repo_root = tl.stdout.strip()
+                else:
+                    dlog("Git repo not found")
+                    return {"has_update": False, "error": "git repo not found from server path"}
+            
+            dlog(f"Repo root: {repo_root}")
+            
+            branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=repo_root, timeout=5)
+            if branch.returncode != 0:
+                dlog(f"Branch check failed: {branch.stderr.strip()}")
+                return {"has_update": False, "error": branch.stderr.strip()}
+            branch_name = branch.stdout.strip()
+            dlog(f"Branch: {branch_name}")
+
+            upstream = subprocess.run(["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], capture_output=True, text=True, cwd=repo_root, timeout=5)
+            if upstream.returncode == 0:
+                upstream_ref = upstream.stdout.strip()
+                dlog(f"Upstream: {upstream_ref}")
+                remote_name = upstream_ref.split('/')[0]
+                # Ensure we're checking against the correct repo URL
+                remote_url = subprocess.run(["git", "remote", "get-url", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=5)
+                dlog(f"Remote URL: {remote_url.stdout.strip()}")
+                
+                subprocess.run(["git", "fetch", "--quiet", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=10)
+                revspec = f"HEAD...{upstream_ref}"
             else:
-                return {"has_update": False, "error": "git repo not found from server path"}
-        branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=repo_root, timeout=5)
-        if branch.returncode != 0:
-            return {"has_update": False, "error": branch.stderr.strip()}
-        branch_name = branch.stdout.strip()
-        upstream = subprocess.run(["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], capture_output=True, text=True, cwd=repo_root, timeout=5)
-        if upstream.returncode == 0:
-            upstream_ref = upstream.stdout.strip()
-            remote_name = upstream_ref.split('/')[0]
-            # Ensure we're checking against the correct repo URL
-            remote_url = subprocess.run(["git", "remote", "get-url", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=5)
-            if "TomerGamerTV/UAT-Global-Server" not in remote_url.stdout:
-                 # If origin isn't correct, try to find one that is or default to origin but warn/fail?
-                 # Actually, better to just force fetch origin and compare against origin/main if that's the standard
-                 pass
+                dlog("Upstream NOT found or implicit")
+                remote_name = "origin"
+                # Explicitly set origin to the correct repo if it's not
+                subprocess.run(["git", "remote", "set-url", "origin", "https://github.com/TomerGamerTV/UAT-Global-Server.git"], capture_output=True, text=True, cwd=repo_root, timeout=5)
+                
+                subprocess.run(["git", "fetch", "--quiet", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=10)
+                revspec = f"HEAD...{remote_name}/{branch_name}"
             
-            subprocess.run(["git", "fetch", "--quiet", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=10)
-            revspec = f"HEAD...{upstream_ref}"
-        else:
-            remote_name = "origin"
-            # Explicitly set origin to the correct repo if it's not
-            subprocess.run(["git", "remote", "set-url", "origin", "https://github.com/TomerGamerTV/UAT-Global-Server.git"], capture_output=True, text=True, cwd=repo_root, timeout=5)
+            dlog(f"Revspec: {revspec}")
+            cmp = subprocess.run(["git", "rev-list", "--left-right", "--count", revspec], capture_output=True, text=True, cwd=repo_root, timeout=5)
+            if cmp.returncode != 0:
+                dlog(f"Rev-list failed: {cmp.stderr.strip()}")
+                return {"has_update": False, "error": cmp.stderr.strip(), "branch": branch_name}
             
-            subprocess.run(["git", "fetch", "--quiet", remote_name], capture_output=True, text=True, cwd=repo_root, timeout=10)
-            revspec = f"HEAD...{remote_name}/{branch_name}"
-        cmp = subprocess.run(["git", "rev-list", "--left-right", "--count", revspec], capture_output=True, text=True, cwd=repo_root, timeout=5)
-        if cmp.returncode != 0:
-            return {"has_update": False, "error": cmp.stderr.strip(), "branch": branch_name}
-        parts = cmp.stdout.strip().split()
-        ahead = int(parts[0]) if len(parts) > 0 else 0
-        behind = int(parts[1]) if len(parts) > 1 else 0
-        head_sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=repo_root, timeout=5)
-        remote_sha = subprocess.run(["git", "rev-parse", revspec.split('...')[1]], capture_output=True, text=True, cwd=repo_root, timeout=5)
-        return {
-            "has_update": bool(behind > 0),
-            "branch": branch_name,
-            "upstream": revspec.split('...')[1],
-            "ahead": ahead,
-            "behind": behind,
-            "head": head_sha.stdout.strip() if head_sha.returncode == 0 else "",
-            "remote": remote_sha.stdout.strip() if remote_sha.returncode == 0 else ""
-        }
+            dlog(f"Rev-list output: {cmp.stdout.strip()}")
+            parts = cmp.stdout.strip().split()
+            ahead = int(parts[0]) if len(parts) > 0 else 0
+            behind = int(parts[1]) if len(parts) > 1 else 0
+            
+            res = {
+                "has_update": bool(behind > 0),
+                "branch": branch_name,
+                "upstream": revspec.split('...')[1],
+                "ahead": ahead,
+                "behind": behind,
+                "head": "", # simplified for log
+                "remote": ""
+            }
+            dlog(f"Result: {res}")
+            return res
     except Exception as e:
+        try:
+            with open("debug_update_handler.log", "a", encoding="utf-8") as log_file:
+                 log_file.write(f"EXCEPTION: {e}\n")
+        except:
+            pass
         return {"has_update": False, "error": str(e)}
 
 @server.get("/log/{task_id}")
