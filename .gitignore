@@ -139,3 +139,5 @@ brayscript/
 /userdata
 
 scripts/
+
+.agent/rules/

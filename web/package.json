@@ -2,7 +2,7 @@
   "name": "auto-web",
   "version": "0.0.0",
   "scripts": {
-    "prebuild": "node clean-assets.js",
+    "prebuild": "bun clean-assets.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173"
