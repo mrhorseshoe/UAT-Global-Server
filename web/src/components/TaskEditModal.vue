@@ -1374,6 +1374,36 @@
                 </div>
 
                 <div v-if="showEventList" class="skill-list-content">
+                  <div class="row mb-2">
+                    <div class="col-md-6">
+                      <label class="filter-label">Add Missing Event</label>
+                      <input v-model.trim="newEvent.name" type="text" class="form-control form-control-sm"
+                        placeholder="Exact in-game event name" />
+                    </div>
+                    <div class="col-md-3">
+                      <label class="filter-label">Number of Options</label>
+                      <select v-model.number="newEvent.option_count" class="form-control form-control-sm">
+                        <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                      <button type="button" class="btn btn--outline" @click="addNewEvent"
+                        :disabled="!newEvent.name">Add</button>
+                    </div>
+                  </div>
+                  <div class="row mb-2" v-if="newEventMsg">
+                    <div class="col">
+                      <small :class="newEventOk ? 'text-success' : 'text-danger'">{{ newEventMsg }}</small>
+                    </div>
+                  </div>
+                  <div class="row mb-2" v-if="!eventQuery">
+                    <div class="col d-flex align-items-center">
+                      <button type="button" class="btn btn--outline" @click="showFullEventList = !showFullEventList">
+                        {{ showFullEventList ? 'Hide Full List' : 'Show Full List (' + eventList.length + ' events)' }}
+                      </button>
+                      <small v-if="!showFullEventList" class="text-muted ml-2">Use the search box above to find an event; events with an override stay listed below</small>
+                    </div>
+                  </div>
                   <ul class="list-group">
                     <li v-for="name in eventListFiltered()" :key="name" class="list-group-item d-flex justify-content-between align-items-center">
                       <span class="text-truncate" style="max-width: 70%;" :title="name">{{ name }}</span>
@@ -1741,7 +1771,8 @@ import characterData from '../assets/uma_character_data.json';
 import raceData from '../assets/uma_race_data.json';
 // skill database is fetched from the bot server at runtime (GET /api/skills)
 // so skills added via the Add Missing Skill form appear without a rebuild
-import eventNames, { eventOptionCounts } from 'virtual:events';
+// event list is fetched from the bot server at runtime (GET /api/events)
+// so events added via the Add Missing Event form appear without a rebuild
 
 export default {
   name: "TaskEditModal",
@@ -2003,7 +2034,12 @@ export default {
       showEventList: false,
       eventQuery: '',
       eventList: [],
+      eventOptionCounts: {},
+      showFullEventList: false,
       eventChoicesSelected: {},
+      newEvent: { name: '', option_count: 3 },
+      newEventMsg: '',
+      newEventOk: false,
 
       // Score Value per period [lv1, lv2, rainbow, hint] + separate Special fields
       scoreValueJunior: [0.11, 0.10, 0.01, 0.09],
@@ -2514,7 +2550,7 @@ export default {
       },
       // Event option helpers
       getEventOptionCount(name) {
-        return eventOptionCounts && typeof eventOptionCounts === 'object' ? (eventOptionCounts[name] || 0) : 0;
+        return this.eventOptionCounts && typeof this.eventOptionCounts === 'object' ? (this.eventOptionCounts[name] || 0) : 0;
       },
       isEventChoiceSelected(name, n) {
         return this.eventChoicesSelected && this.eventChoicesSelected[name] === n;
@@ -2539,15 +2575,41 @@ export default {
         return out;
       },
       loadEventList() {
-        try {
-          this.eventList = Array.isArray(eventNames) ? eventNames : [];
-        } catch (e) {
+        this.axios.get("/api/events").then(res => {
+          const d = res.data || {};
+          this.eventList = Array.isArray(d.names) ? d.names : [];
+          this.eventOptionCounts = (d.counts && typeof d.counts === 'object') ? d.counts : {};
+        }).catch(() => {
           this.eventList = [];
-        }
+        })
+      },
+      addNewEvent() {
+        this.axios.post("/api/events", {
+          name: this.newEvent.name,
+          option_count: this.newEvent.option_count
+        }).then(res => {
+          const ok = res.data && res.data.ret === 0;
+          this.newEventOk = ok;
+          this.newEventMsg = (res.data && res.data.msg) || 'Failed to add event';
+          if (ok) {
+            this.newEvent.name = '';
+            this.loadEventList();
+          }
+        }).catch(() => {
+          this.newEventOk = false;
+          this.newEventMsg = 'Failed to add event (is the bot server running?)';
+        })
       },
       eventListFiltered() {
         const q = (this.eventQuery || '').toLowerCase();
-        if (!q) return this.eventList;
+        // without a search query, render only events with an override set
+        // (so they stay reviewable) unless the full list was explicitly
+        // requested - populating all ~900 rows is wasteful
+        if (!q) {
+          if (this.showFullEventList) return this.eventList;
+          const overridden = new Set(Object.keys(this.eventChoicesSelected || {}).filter(n => this.eventChoicesSelected[n]));
+          return this.eventList.filter(name => overridden.has(name));
+        }
         return this.eventList.filter(name => name && name.toLowerCase().includes(q));
       },
     onScenarioChange() {

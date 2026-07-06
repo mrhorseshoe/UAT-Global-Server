@@ -180,6 +180,64 @@ def add_skill(req: AddSkillRequest):
     return {"ret": 0, "msg": "Skill added"}
 
 
+EVENTS_JSON_PATH = os.path.join('resource', 'umamusume', 'data', 'event_data.json')
+
+
+class AddEventRequest(BaseModel):
+    name: str
+    option_count: int
+
+
+def _event_option_count(value):
+    # same logic the web build used: count choices, fall back to stats
+    count = 0
+    if isinstance(value, dict):
+        choices = value.get('choices')
+        if isinstance(choices, (list, dict)):
+            count = len(choices)
+        if not count and isinstance(value.get('stats'), dict):
+            count = len(value['stats'])
+    return count
+
+
+@server.get("/api/events")
+def get_events():
+    with open(EVENTS_JSON_PATH, 'r', encoding='utf-8') as f:
+        events = json.load(f)
+    return {
+        "names": sorted(events.keys()),
+        "counts": {name: _event_option_count(value) for name, value in events.items()},
+    }
+
+
+@server.post("/api/events")
+def add_event(req: AddEventRequest):
+    name = req.name.strip()
+    if not name:
+        return {"ret": 1, "msg": "Event name is required"}
+    count = max(1, min(int(req.option_count), 5))
+    with open(EVENTS_JSON_PATH, 'r', encoding='utf-8') as f:
+        events = json.load(f)
+    if any(k.lower() == name.lower() for k in events):
+        return {"ret": 1, "msg": f"Event '{name}' already exists"}
+    # no stats: without a user override the bot falls back to choice 1,
+    # so these entries exist mainly to be overridden in Event Settings
+    events[name] = {
+        "choices": {str(i): "Choice " + str(i) for i in range(1, count + 1)},
+        "stats": {},
+    }
+    with open(EVENTS_JSON_PATH, 'w', encoding='utf-8') as f:
+        json.dump(events, f, ensure_ascii=False, indent=1)
+    # drop the bot's in-memory events database so the new entry is seen
+    # without a restart
+    try:
+        import module.umamusume.script.cultivate_task.event.manifest as event_manifest
+        event_manifest._events_database = None
+    except Exception:
+        pass
+    return {"ret": 0, "msg": "Event added"}
+
+
 @server.post("/task")
 def add_task(req: AddTaskRequest):
     bot_ctrl.add_task(req.app_name, req.task_execute_mode, req.task_type, req.task_desc,
