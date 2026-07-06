@@ -24,11 +24,22 @@
                             <div class="form-group">
                 <label for="selectExecuteMode">Execution Mode</label>
                 <select v-model.number="selectedExecuteMode" class="form-control" id="selectExecuteMode">
-                  <option :value="1">Single Execution (Depricated)</option>
-                  <option :value="3">Loop until canceled</option>
+                  <option :value="6">Loop</option>
                   <option :value="4">Team Trials</option>
-                  <option :value="5">Full Auto (Career + Team Trials Loop)</option>
                 </select>
+              </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6">
+                <label for="selectLoopCount">Number of Runs</label>
+                <select v-model.number="loopCount" class="form-control" id="selectLoopCount">
+                  <option :value="0">Infinite (until canceled)</option>
+                  <option v-for="n in 100" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="checkTeamTrials" v-model="doTeamTrials">
+                  <label class="form-check-label" for="checkTeamTrials">Team Trials (run between careers)</label>
+                </div>
               </div>
               <div class="row">
                 <div class="col">
@@ -1798,7 +1809,9 @@ export default {
         extraWeight: [],
       },
       // ===  已选择  ===
-      selectedExecuteMode: 3,
+      selectedExecuteMode: 6,
+      loopCount: 0,
+      doTeamTrials: false,
       expectTimes: 0,
       cron: "* * * * *",
 
@@ -2812,11 +2825,14 @@ export default {
       var ura_reset_skill_event_weight_list = this.resetSkillEventWeightList ? this.resetSkillEventWeightList.split(",").map(item => item.trim()) : []
       let payload = {
         app_name: "umamusume",
-        task_execute_mode: this.selectedExecuteMode,
+        // mode 6 is UI-only: it maps to LOOP (3), or FULL_AUTO (5) when the
+        // Team Trials tickbox is set; both honor loop_count (0 = infinite)
+        task_execute_mode: this.selectedExecuteMode === 6 ? (this.doTeamTrials ? 5 : 3) : this.selectedExecuteMode,
         task_type: this.selectedUmamusumeTaskType.id,
         task_desc: this.selectedUmamusumeTaskType.name,
         attachment_data: {
           "scenario": this.selectedScenario,
+          "loop_count": this.selectedExecuteMode === 6 ? this.loopCount : 0,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,

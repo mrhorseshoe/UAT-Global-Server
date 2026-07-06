@@ -920,6 +920,15 @@ def script_main_menu(ctx: UmamusumeContext):
     if ctx.cultivate_detail.cultivate_finish:
         mode_name = getattr(ctx.task.task_execute_mode, "name", None)
         if mode_name == "TASK_EXECUTE_MODE_FULL_AUTO":
+            # in full auto the task never ends per career, so the run limit
+            # has to be counted here rather than in the scheduler
+            loop_limit = getattr(ctx.task.detail, 'loop_count', 0) or 0
+            if loop_limit:
+                ctx.task.detail.loops_done = (getattr(ctx.task.detail, 'loops_done', 0) or 0) + 1
+                log.info(f"career run {ctx.task.detail.loops_done}/{loop_limit} completed in full auto mode")
+                if ctx.task.detail.loops_done >= loop_limit:
+                    ctx.task.end_task(TaskStatus.TASK_STATUS_SUCCESS, EndTaskReason.COMPLETE)
+                    return
             log.info("career run completed in full auto mode - resetting for next run")
             ctx.cultivate_detail.cultivate_finish = False
             ctx.cultivate_detail.turn_info = None

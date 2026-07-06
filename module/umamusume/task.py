@@ -40,6 +40,9 @@ class TaskDetail:
     fujikiseki_show_mode: bool
     fujikiseki_show_difficulty: int
     do_tt_next: bool
+    # LOOP mode run limit: 0 = loop until canceled
+    loop_count: int
+    loops_done: int
 
 
 class EndTaskReason(Enum):
@@ -132,7 +135,9 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
 
     td.fujikiseki_show_difficulty = attachment_data['fujikiseki_show_difficulty']
     td.do_tt_next = attachment_data.get('do_tt_next', False)
-    
+    td.loop_count = int(attachment_data.get('loop_count', 0) or 0)
+    td.loops_done = int(attachment_data.get('loops_done', 0) or 0)
+
     ut.detail = td
     return ut
 
