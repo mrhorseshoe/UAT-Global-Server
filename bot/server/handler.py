@@ -122,6 +122,64 @@ def get_sys_metrics():
     return _sys_metric_cache
 
 
+SKILLS_JSON_PATH = os.path.join('web', 'src', 'assets', 'umamusume_final_skills_fixed.json')
+
+
+class AddSkillRequest(BaseModel):
+    name: str
+    skill_type: str
+    rarity: str = "Normal"
+    description: str = ""
+    tier: str = "A"
+    strategy: str = ""
+    distance: str = ""
+
+
+@server.get("/api/skills")
+def get_skills():
+    with open(SKILLS_JSON_PATH, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+@server.post("/api/skills")
+def add_skill(req: AddSkillRequest):
+    name = req.name.strip()
+    if not name:
+        return {"ret": 1, "msg": "Skill name is required"}
+    with open(SKILLS_JSON_PATH, 'r', encoding='utf-8') as f:
+        skills = json.load(f)
+    if any(s.get('name', '').lower() == name.lower() for s in skills):
+        return {"ret": 1, "msg": f"Skill '{name}' already exists"}
+    tier = req.tier.strip() or "A"
+    entry = {
+        "skill_id": tier + "_" + name.replace(" ", "-"),
+        "name": name,
+        "tier": tier,
+        "skill_type": req.skill_type.strip() or "Others",
+        "prerequisite_of": [],
+        "prerequisites": [],
+        "description": req.description.strip(),
+        "purchase_option": "Direct",
+        "rarity": req.rarity.strip() or "Normal",
+    }
+    # optional filter fields; existing entries omit them when not applicable
+    if req.strategy.strip():
+        entry["strategy"] = req.strategy.strip()
+    if req.distance.strip():
+        entry["distance"] = req.distance.strip()
+    skills.append(entry)
+    with open(SKILLS_JSON_PATH, 'w', encoding='utf-8') as f:
+        json.dump(skills, f, ensure_ascii=False, indent=1)
+    # drop the bot's in-memory copy so OCR canonicalization sees the new
+    # skill without a restart
+    try:
+        import module.umamusume.script.cultivate_task.parse as cultivate_parse
+        cultivate_parse.skills_database_cache = None
+    except Exception:
+        pass
+    return {"ret": 0, "msg": "Skill added"}
+
+
 @server.post("/task")
 def add_task(req: AddTaskRequest):
     bot_ctrl.add_task(req.app_name, req.task_execute_mode, req.task_type, req.task_desc,

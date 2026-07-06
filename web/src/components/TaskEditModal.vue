@@ -1120,6 +1120,61 @@
                         </div>
                       </div>
                     </div>
+                    <div class="row mt-3">
+                      <div class="col-md-4">
+                        <label class="filter-label">Add Missing Skill</label>
+                        <input v-model.trim="newSkill.name" type="text" class="form-control form-control-sm"
+                          placeholder="Exact in-game skill name" />
+                      </div>
+                      <div class="col-md-3">
+                        <label class="filter-label">Type</label>
+                        <select v-model="newSkill.skill_type" class="form-control form-control-sm">
+                          <option v-for="t in newSkillTypes" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="filter-label">Rarity</label>
+                        <select v-model="newSkill.rarity" class="form-control form-control-sm">
+                          <option>Normal</option>
+                          <option>Rare</option>
+                          <option>Evolved</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="filter-label">Tier</label>
+                        <select v-model="newSkill.tier" class="form-control form-control-sm">
+                          <option v-for="t in availableTiers.slice(1)" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="row mt-2">
+                      <div class="col-md-3">
+                        <label class="filter-label">Strategy (optional)</label>
+                        <select v-model="newSkill.strategy" class="form-control form-control-sm">
+                          <option v-for="s in availableStrategies" :key="s" :value="s">{{ s || 'None' }}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="filter-label">Distance (optional)</label>
+                        <select v-model="newSkill.distance" class="form-control form-control-sm">
+                          <option v-for="d in availableDistances" :key="d" :value="d">{{ d || 'None' }}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="filter-label">Description (optional)</label>
+                        <input v-model.trim="newSkill.description" type="text" class="form-control form-control-sm"
+                          placeholder="Used by search" />
+                      </div>
+                      <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn--outline" @click="addNewSkill"
+                          :disabled="!newSkill.name">Add</button>
+                      </div>
+                    </div>
+                    <div class="row" v-if="newSkillMsg">
+                      <div class="col">
+                        <small :class="newSkillOk ? 'text-success' : 'text-danger'">{{ newSkillMsg }}</small>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="skill-list-container">
@@ -1684,7 +1739,8 @@ import UraConfigModal from './UraConfigModal.vue';
 import SupportCardSelectModal from './SupportCardSelectModal.vue';
 import characterData from '../assets/uma_character_data.json';
 import raceData from '../assets/uma_race_data.json';
-import skillsData from '../assets/umamusume_final_skills_fixed.json';
+// skill database is fetched from the bot server at runtime (GET /api/skills)
+// so skills added via the Add Missing Skill form appear without a rebuild
 import eventNames, { eventOptionCounts } from 'virtual:events';
 
 export default {
@@ -1898,7 +1954,12 @@ export default {
       availableStrategies: ['', 'Front Runner', 'Pace Chaser', 'Late Surger', 'End Closer'],
       availableDistances: ['', 'Sprint', 'Mile', 'Medium', 'Long'],
       availableTiers: ['', 'SS', 'S', 'A', 'B', 'C', 'D'],
-      availableRarities: ['', 'Unique', 'Rare', 'Normal'],
+      availableRarities: ['', 'Unique', 'Evolved', 'Rare', 'Normal'],
+      skillsData: [],
+      newSkill: { name: '', skill_type: 'Speed', rarity: 'Normal', description: '', tier: 'A', strategy: '', distance: '' },
+      newSkillTypes: ['Speed', 'Acceleration', 'Recovery', 'Passive', 'Navigation', 'Vision', 'Debuff', 'Others'],
+      newSkillMsg: '',
+      newSkillOk: false,
       showSkillList: false
       , showPresetMenu: false,
 
@@ -2146,7 +2207,7 @@ export default {
     },
     // New computed property for all skills grouped by type
     allSkillsByType() {
-      const allSkills = skillsData;
+      const allSkills = this.skillsData;
       const grouped = {};
       allSkills.forEach(skill => {
         if (!grouped[skill.skill_type]) {
@@ -2158,7 +2219,7 @@ export default {
     },
     filteredSkillsByType() {
       const { strategy, distance, tier, rarity, query } = this.skillFilter;
-      const allSkills = skillsData;
+      const allSkills = this.skillsData;
 
       // Filter skills based on selected criteria
       const filteredSkills = allSkills.filter(skill => {
@@ -2547,13 +2608,38 @@ export default {
       this.umamusumeRaceList_3 = seniorRaces;
     },
     loadSkillData: function () {
-      // Load all skills from JSON and organize by priority/tier
-      const allSkills = skillsData;
+      // Load all skills from the bot server and organize by priority/tier
+      this.axios.get("/api/skills").then(res => {
+        this.skillsData = Array.isArray(res.data) ? res.data : [];
 
-      // Organize skills by tier/priority - store full skill objects
-      this.skillPriority0 = allSkills.filter(skill => skill.tier === 'SS');
-      this.skillPriority1 = allSkills.filter(skill => skill.tier === 'S');
-      this.skillPriority2 = allSkills.filter(skill => skill.tier === 'A');
+        // Organize skills by tier/priority - store full skill objects
+        this.skillPriority0 = this.skillsData.filter(skill => skill.tier === 'SS');
+        this.skillPriority1 = this.skillsData.filter(skill => skill.tier === 'S');
+        this.skillPriority2 = this.skillsData.filter(skill => skill.tier === 'A');
+      })
+    },
+    addNewSkill: function () {
+      this.axios.post("/api/skills", {
+        name: this.newSkill.name,
+        skill_type: this.newSkill.skill_type,
+        rarity: this.newSkill.rarity,
+        description: this.newSkill.description,
+        tier: this.newSkill.tier,
+        strategy: this.newSkill.strategy,
+        distance: this.newSkill.distance
+      }).then(res => {
+        const ok = res.data && res.data.ret === 0;
+        this.newSkillOk = ok;
+        this.newSkillMsg = (res.data && res.data.msg) || 'Failed to add skill';
+        if (ok) {
+          this.newSkill.name = '';
+          this.newSkill.description = '';
+          this.loadSkillData();
+        }
+      }).catch(() => {
+        this.newSkillOk = false;
+        this.newSkillMsg = 'Failed to add skill (is the bot server running?)';
+      })
     },
     deleteBox(item, index) {
       if (this.skillLearnPriorityList.length <= 1) {
