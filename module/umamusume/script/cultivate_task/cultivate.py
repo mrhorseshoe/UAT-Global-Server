@@ -935,7 +935,10 @@ def script_scenario_select(ctx: UmamusumeContext):
     target_scenario = ctx.cultivate_detail.scenario.scenario_type()
     time.sleep(2) # If network is very poor, this might not wait enough
 
-    for i in range(1, len(ScenarioType)):
+    # The carousel holds more scenarios than ScenarioType tracks (Global added a
+    # third card), so allow enough swipes to cycle the whole carousel from any
+    # starting position instead of tying attempts to the enum size
+    for i in range(6):
         img = ctx.ctrl.get_screen(to_gray=True)
 
         if image_match(img, UI_SCENARIO[target_scenario]).find_match:
