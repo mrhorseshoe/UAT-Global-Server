@@ -1,7 +1,10 @@
 from enum import Enum
 from module.umamusume.define import ScenarioType
-from bot.base.task import Task, TaskExecuteMode
+from bot.base.task import Task, TaskExecuteMode, TaskStatus
 from module.umamusume.scenario.configs import *
+import bot.base.log as logger
+
+log = logger.get_logger(__name__)
 
 
 class TaskDetail:
@@ -54,6 +57,23 @@ class UmamusumeTask(Task):
     detail: TaskDetail
 
     def end_task(self, status, reason) -> None:
+        # Count loop runs here, not in the scheduler: the process soft-restarts
+        # right after each execution, so the scheduler's polling loop may never
+        # see the finished status. end_task runs before the task list is saved.
+        # FULL_AUTO successes are counted per career in script_main_menu; only
+        # its mid-run failures need counting here.
+        try:
+            detail = getattr(self, 'detail', None)
+            loop_limit = getattr(detail, 'loop_count', 0) or 0
+            if loop_limit and status in (TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED):
+                counts = (self.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_LOOP
+                          or (self.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_FULL_AUTO
+                              and status == TaskStatus.TASK_STATUS_FAILED))
+                if counts:
+                    detail.loops_done = (getattr(detail, 'loops_done', 0) or 0) + 1
+                    log.info(f"Loop run {detail.loops_done}/{loop_limit} finished")
+        except Exception:
+            pass
         super().end_task(status, reason)
 
     def start_task(self) -> None:

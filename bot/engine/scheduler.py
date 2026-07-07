@@ -87,28 +87,22 @@ class Scheduler:
                     elif task.task_execute_mode in [TaskExecuteMode.TASK_EXECUTE_MODE_LOOP,
                                                     TaskExecuteMode.TASK_EXECUTE_MODE_FULL_AUTO]:
                         if not task_executor.active:
-                            # loop_count = 0 means loop until canceled. LOOP counts
-                            # runs here on each task end; FULL_AUTO counts careers
-                            # internally (script_main_menu) and ends itself with
-                            # SUCCESS at the limit, so a SUCCESS with the limit
-                            # already reached is final for both modes. A FAILED
-                            # run counts toward the limit either way.
+                            # loop_count = 0 means loop until canceled. Runs are
+                            # counted in UmamusumeTask.end_task (and per career in
+                            # script_main_menu for FULL_AUTO) because the process
+                            # soft-restarts right after each execution - this loop
+                            # may never see the finished status, so it only gates.
                             detail = getattr(task, 'detail', None)
                             loop_limit = getattr(detail, 'loop_count', 0) or 0
                             loops_done = getattr(detail, 'loops_done', 0) or 0
                             limit_reached = loop_limit > 0 and loops_done >= loop_limit
                             if task.task_status in [TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED]:
                                 if not limit_reached:
-                                    if loop_limit > 0:
-                                        loops_done += 1
-                                        detail.loops_done = loops_done
-                                    if loop_limit > 0 and loops_done >= loop_limit:
-                                        log.info("Loop task " + str(task.task_id) + " completed all "
-                                                 + str(loop_limit) + " runs")
-                                    else:
-                                        task.task_status = TaskStatus.TASK_STATUS_PENDING
+                                    task.task_status = TaskStatus.TASK_STATUS_PENDING
                             elif task.task_status == TaskStatus.TASK_STATUS_PENDING and limit_reached:
-                                # restored from a restart after the run limit was already reached
+                                # restored from a restart with all requested runs done
+                                log.info("Loop task " + str(task.task_id) + " completed all "
+                                         + str(loop_limit) + " runs")
                                 task.task_status = TaskStatus.TASK_STATUS_SUCCESS
                             if task.task_status == TaskStatus.TASK_STATUS_PENDING:
                                 self.start_executor_for(task, task_executor)
