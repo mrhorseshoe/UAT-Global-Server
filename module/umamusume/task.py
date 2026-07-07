@@ -65,13 +65,14 @@ class UmamusumeTask(Task):
         try:
             detail = getattr(self, 'detail', None)
             loop_limit = getattr(detail, 'loop_count', 0) or 0
-            if loop_limit and status in (TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED):
+            if detail is not None and status in (TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED):
                 counts = (self.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_LOOP
                           or (self.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_FULL_AUTO
                               and status == TaskStatus.TASK_STATUS_FAILED))
                 if counts:
                     detail.loops_done = (getattr(detail, 'loops_done', 0) or 0) + 1
-                    log.info(f"Loop run {detail.loops_done}/{loop_limit} finished")
+                    limit_text = str(loop_limit) if loop_limit else "unlimited"
+                    log.info(f"Loop run {detail.loops_done}/{limit_text} finished")
         except Exception:
             pass
         super().end_task(status, reason)

@@ -6,6 +6,7 @@
         <span v-if="task.end_task_time !== undefined" class="small time"> ~ {{task.end_task_time}}</span>
         <span v-if= "task.task_start_time === undefined" class="small time">Not Started</span>
         <div v-if="task.task_execute_mode === 'CRON_JOB'" class="small time">Next Execution Time: {{task.cron_job_info?.next_time}} ({{task.cron_job_info?.cron}})</div>
+        <div v-if="runCountDisplay" class="small time">Run {{ runCountDisplay }}</div>
       </div>
       <div class="btn-group float-right" role="group" aria-label="Basic example">
         <button type="button" class="btn auto-btn" v-on:click="resetTask">Reset</button>
@@ -33,6 +34,23 @@ export default {
   name: "TaskDetailInfoHandler",
   components: {UmamusumeTaskDetailInfo},
   props: ["task"],
+  computed: {
+    runCountDisplay() {
+      const d = this.task && this.task.detail;
+      if (!d) return '';
+      const mode = this.task.task_execute_mode;
+      const isLoopMode = mode === 3 || mode === 5 ||
+        mode === 'TASK_EXECUTE_MODE_LOOP' || mode === 'TASK_EXECUTE_MODE_FULL_AUTO' ||
+        mode === 'LOOP' || mode === 'FULL_AUTO';
+      if (!isLoopMode) return '';
+      // loops_done counts finished runs, so the run in progress is done + 1,
+      // clamped so a completed task reads "10 of 10" rather than "11 of 10"
+      const done = d.loops_done || 0;
+      const limit = d.loop_count || 0;
+      if (limit) return Math.min(done + 1, limit) + ' of ' + limit;
+      return String(done + 1);
+    }
+  },
   methods: {
     resetTask: function (){
       let payload = {
