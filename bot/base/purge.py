@@ -188,7 +188,10 @@ def serialize_umamusume_task(t):
 def save_scheduler_state():
     try:
         from bot.engine.scheduler import scheduler
-        return bool(write_json('userdata/scheduler_state.json', {'active': bool(getattr(scheduler, 'active', False))}))
+        return bool(write_json('userdata/scheduler_state.json', {
+            'active': bool(getattr(scheduler, 'active', False)),
+            'stop_after_run': bool(getattr(scheduler, 'stop_after_run', False)),
+        }))
     except Exception:
         return False
 
@@ -201,6 +204,11 @@ def load_scheduler_state():
             return None
         try:
             os.remove(path)
+        except Exception:
+            pass
+        try:
+            from bot.engine.scheduler import scheduler
+            scheduler.stop_after_run = bool(d.get('stop_after_run'))
         except Exception:
             pass
         return bool(d.get('active'))

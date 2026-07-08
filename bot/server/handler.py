@@ -391,6 +391,16 @@ def stop_bot():
     bot_ctrl.stop()
 
 
+@server.post("/action/bot/stop-after-run")
+def stop_after_run():
+    return {"stop_after_run": bot_ctrl.toggle_stop_after_run()}
+
+
+@server.get("/action/bot/status")
+def bot_status():
+    return bot_ctrl.get_status()
+
+
 @server.get("/api/pal-defaults")
 def get_pal_defaults():
     from module.umamusume.user_data import read_pal_defaults

@@ -17,12 +17,20 @@ class Scheduler:
     running_task: Task = None
 
     active = False
+    # when set, the scheduler deactivates instead of starting the next run;
+    # persisted in scheduler_state.json to survive the post-run process restart
+    stop_after_run = False
 
     def add_task(self, task):
         log.info("Task added: " + task.task_id)
         self.task_list.append(task)
 
     def start_executor_for(self, task, task_executor):
+        if self.stop_after_run:
+            log.info("Stop after current run: scheduler stopped instead of starting the next run")
+            self.stop_after_run = False
+            self.active = False
+            return
         executor_thread = threading.Thread(target=task_executor.start, args=([task]), daemon=True)
         executor_thread.start()
 
@@ -128,8 +136,12 @@ class Scheduler:
 
     def stop(self):
         self.active = False
+        self.stop_after_run = False
 
     def start(self):
+        # intentionally does not clear stop_after_run: the restart path in
+        # main.py calls start() after restoring state, and a restored
+        # stop-after-run request must survive that. Cancel via the toggle.
         self.active = True
 
     def get_task_list(self):
