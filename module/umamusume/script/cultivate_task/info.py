@@ -220,8 +220,21 @@ def script_info(ctx: UmamusumeContext):
                         ctx.ctrl.click_by_point(RACE_FAIL_CONTINUE_CANCEL)
                         log.info("(retry) Reached Clock limit, cancel race")
                 else:
-                    ctx.ctrl.click_by_point(RACE_FAIL_CONTINUE_CANCEL)
-                    log.info("🔋 Not a race fail screen - canceling")
+                    # Unity Cup 2.0 team-race retry dialog. Reached only via the
+                    # Try Again button on the lost showdown result screen, where
+                    # the clock was already counted - so just confirm here.
+                    team_retry = False
+                    try:
+                        q_txt = (ocr_line(ctx.current_screen[540:600, 40:680]) or '').upper()
+                        team_retry = 'ALARM CLOCK' in q_txt or 'ANOTHER CHANCE' in q_txt
+                    except Exception:
+                        team_retry = False
+                    if team_retry:
+                        log.info("Unity Cup retry dialog - confirming clock use")
+                        ctx.ctrl.click(517, 1182, 'unity cup retry confirm')
+                    else:
+                        ctx.ctrl.click_by_point(RACE_FAIL_CONTINUE_CANCEL)
+                        log.info("🔋 Not a race fail screen - canceling")
             log.debug("Clock limit %s, used %s", str(ctx.cultivate_detail.clock_use_limit),
                         str(ctx.cultivate_detail.clock_used))
         if title_text == TITLE[5]: #Earned Title

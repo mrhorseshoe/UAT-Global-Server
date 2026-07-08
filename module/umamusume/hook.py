@@ -305,6 +305,34 @@ def after_hook(ctx: UmamusumeContext):
             # Wider box than the title itself: on the Unity Cup 2.0 showdown screens
             # (Elite Team / S+ Team Zenith) the title sits ~8px further left.
             if image_match(img[0:40, 0:200], REF_TEAM_SHOWDOWN).find_match:
+                # The Team Showdown title covers both the VS screen (Race! button)
+                # and the result screen (WIN/LOSE banner with Try Again / Next).
+                # OCR the banner area to tell them apart; the stylized LOSE often
+                # reads as 'OSE'. Any unclear read falls through to the VS clicks,
+                # so a clock is only ever spent on an explicit LOSE.
+                banner_txt = ''
+                try:
+                    from bot.recog.ocr import ocr_line
+                    banner_txt = (ocr_line(ctx.current_screen[390:530, 200:520]) or '').strip().upper()
+                except Exception:
+                    banner_txt = ''
+                if 'WIN' in banner_txt:
+                    ctx.ctrl.click(513, 1185, 'team showdown result next')
+                    return
+                if 'LOS' in banner_txt or 'OSE' in banner_txt:
+                    try:
+                        cd = ctx.cultivate_detail
+                        if int(cd.clock_used) < int(cd.clock_use_limit):
+                            cd.clock_used += 1
+                            log.info(f"Unity Cup race lost - retrying with clock ({cd.clock_used}/{cd.clock_use_limit})")
+                            ctx.ctrl.click(207, 1185, 'unity cup try again')
+                            time.sleep(1.0)
+                            return
+                        log.info("Unity Cup race lost - clock limit reached, accepting loss")
+                    except Exception:
+                        pass
+                    ctx.ctrl.click(513, 1185, 'team showdown result next')
+                    return
                 ctx.ctrl.click(354, 961, 'team showdown')
                 time.sleep(1)
                 ctx.ctrl.click(522, 930, 'select opp2 cont')
