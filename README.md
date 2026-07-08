@@ -4,3 +4,7 @@ Updates to bot:
 2. Loop run limits — consolidated Execution Mode (Loop + Team Trials tickbox), Number of Runs with Infinite option, counts persist across restarts
 3. Add Missing Skill form — runtime skill database with full field support and Evolved rarity, ready for the game update
 4. Add Missing Event form — runtime event list that shows your overrides at a glance, search-driven, with the full-list toggle
+
+To be added:
+1. UX changes
+2. Implement Unity Cup 2.0 changes to improve bot training logic
