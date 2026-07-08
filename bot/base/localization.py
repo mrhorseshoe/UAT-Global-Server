@@ -1,7 +1,7 @@
 class LocalizationMap:
     SCENARIO_TYPE_UNKNOWN = 'Unknown'
     SCENARIO_TYPE_URA = 'URA'
-    SCENARIO_TYPE_AOHARUHAI = 'Aoharu Cup'
+    SCENARIO_TYPE_AOHARUHAI = 'Unity Cup'
 
     SUPPORT_CARD_TYPE_UNKNOWN = 'Unknown'
     SUPPORT_CARD_TYPE_SPEED = 'Speed'

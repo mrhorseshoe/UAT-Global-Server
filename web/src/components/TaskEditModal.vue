@@ -47,8 +47,7 @@
                     <label for="selectScenario">Scenario Selection</label>
                     <select v-model.number="selectedScenario" class="form-control" id="selectScenario">
                       <option :value="1">URA</option>
-                      <option :value="2">Aoharu Cup</option>
-                      <option :value="3">MANT</option>
+                      <option :value="2">Unity Cup</option>
                     </select>
                   </div>
                 </div>
@@ -92,7 +91,7 @@
               <div class="row" v-if="selectedScenario === 2">
                 <div class="col-4">
                   <div class="form-group">
-                    <span class="btn auto-btn" style="width:100%" v-on:click="openAoharuConfigModal">Aoharu Cup Configuration</span>
+                    <span class="btn auto-btn" style="width:100%" v-on:click="openAoharuConfigModal">Unity Cup Configuration</span>
                   </div>
                 </div>
               </div>

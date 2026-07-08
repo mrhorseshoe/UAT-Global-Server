@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-dialog-centered modal-xl">
       <div class="modal-content" @click.stop>
         <div class="modal-header d-flex align-items-center justify-content-between">
-          <h5 class="mb-0">Aoharu Cup Configuration</h5>
+          <h5 class="mb-0">Unity Cup Configuration</h5>
           <div>
             <button class="btn btn-sm btn-outline-secondary me-2" @click="$emit('update:show', false)">Cancel</button>
             <button class="btn btn-sm btn--primary" @click="confirm">Confirm</button>
