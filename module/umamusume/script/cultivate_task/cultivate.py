@@ -672,7 +672,20 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             if stc_lane > 0:
                 log.info(f"  Special training bonus: +{w_special:.3f}")
                 score += float(w_special)
-            if esb_counts[idx] > 0:
+            # User-configured exclusion: ignore (extreme) spirit bursts on this stat
+            # until Senior Late December (date 72), when any burst is worth taking.
+            burst_excluded = False
+            if date < 72:
+                try:
+                    aoharu_cfg = getattr(getattr(ctx.task.detail, 'scenario_config', None), 'aoharu_config', None)
+                    excl = getattr(aoharu_cfg, 'spirit_burst_exclusions', None)
+                    if isinstance(excl, (list, tuple)) and len(excl) == 5:
+                        burst_excluded = bool(excl[idx])
+                except Exception:
+                    burst_excluded = False
+            if burst_excluded and (spirit_counts[idx] > 0 or esb_counts[idx] > 0):
+                log.info(f"  Spirit bursts on {names[idx]} excluded by config until Senior Late Dec")
+            if esb_counts[idx] > 0 and not burst_excluded:
                 try:
                     esb_w = float(getattr(ctx.cultivate_detail, 'extreme_spirit_burst_score', 0.5))
                 except Exception:
@@ -682,6 +695,8 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             try:
                 se_w = float(se_weights[idx]) if isinstance(se_weights, (list, tuple)) and len(se_weights) == 5 else 0.0
             except Exception:
+                se_w = 0.0
+            if burst_excluded:
                 se_w = 0.0
 
             try:

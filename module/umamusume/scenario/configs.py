@@ -30,6 +30,9 @@ class AoharuConfig:
 
     preliminary_round_selections: list[int]
     aoharu_team_name_selection: int
+    # Per-stat (speed/stamina/power/guts/wit) flags; True means spirit bursts and
+    # extreme spirit bursts on that training are ignored until Senior Late December.
+    spirit_burst_exclusions: list[bool]
 
     def __init__(self, config: dict):
         prs = config.get("preliminaryRoundSelections", config.get("preliminary_round_selections"))
@@ -38,6 +41,10 @@ class AoharuConfig:
             raise ValueError("Wrong configuration: must configure 'preliminaryRoundSelections'/'preliminary_round_selections' and 'aoharuTeamNameSelection'/'aoharu_team_name_selection'")
         self.preliminary_round_selections = prs
         self.aoharu_team_name_selection = team
+        sbe = config.get("spiritBurstExclusions", config.get("spirit_burst_exclusions"))
+        if not isinstance(sbe, (list, tuple)) or len(sbe) != 5:
+            sbe = [False] * 5
+        self.spirit_burst_exclusions = [bool(x) for x in sbe]
 
     """ Get opponent index for specified round, index starts from 0, preliminary round 1 is 0 """
     def get_opponent(self, round_index: int) -> int:

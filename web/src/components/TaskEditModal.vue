@@ -1440,7 +1440,8 @@
       </div>
       <!-- Aoharu Cup Configuration Modal -->
       <AoharuConfigModal v-model:show="showAoharuConfigModal" :preliminaryRoundSelections="preliminaryRoundSelections"
-        :aoharuTeamNameSelection="aoharuTeamNameSelection" @confirm="handleAoharuConfigConfirm"></AoharuConfigModal>
+        :aoharuTeamNameSelection="aoharuTeamNameSelection" :spiritBurstExclusions="spiritBurstExclusions"
+        @confirm="handleAoharuConfigConfirm"></AoharuConfigModal>
       <!-- URA Configuration Modal -->
       <UraConfigModal v-model:show="showUraConfigModal" :skillEventWeight="skillEventWeight"
         :resetSkillEventWeightList="resetSkillEventWeightList" @confirm="handleUraConfigConfirm"></UraConfigModal>
@@ -1957,6 +1958,7 @@ export default {
       // 青春杯配置
       preliminaryRoundSelections: [2, 1, 1, 1],
       aoharuTeamNameSelection: 4,
+      spiritBurstExclusions: [false, false, false, false, false],
       showAoharuConfigModal: false,
       showUraConfigModal: false,
       showSupportCardSelectModal: false,
@@ -2937,6 +2939,7 @@ export default {
     handleAoharuConfigConfirm: function (data) {
       this.preliminaryRoundSelections = [...data.preliminaryRoundSelections];
       this.aoharuTeamNameSelection = data.aoharuTeamNameSelection;
+      this.spiritBurstExclusions = [...(data.spiritBurstExclusions || [false, false, false, false, false])];
       this.showAoharuConfigModal = false;
     },
     cancelTask: function () {
@@ -3024,7 +3027,8 @@ export default {
           // 青春杯配置
           "aoharu_config": this.selectedScenario === 2 ? {
             "preliminaryRoundSelections": [...this.preliminaryRoundSelections],
-            "aoharuTeamNameSelection": this.aoharuTeamNameSelection
+            "aoharuTeamNameSelection": this.aoharuTeamNameSelection,
+            "spiritBurstExclusions": [...this.spiritBurstExclusions]
           } : null
         }
       }
@@ -3347,9 +3351,11 @@ export default {
       if ('auharuhai_config' in this.presetsUse) {
         this.preliminaryRoundSelections = [...this.presetsUse.auharuhai_config.preliminaryRoundSelections];
         this.aoharuTeamNameSelection = this.presetsUse.auharuhai_config.aoharuTeamNameSelection;
+        this.spiritBurstExclusions = [...(this.presetsUse.auharuhai_config.spiritBurstExclusions || [false, false, false, false, false])];
       } else {
         this.preliminaryRoundSelections = [2, 1, 1, 1];
         this.aoharuTeamNameSelection = 4;
+        this.spiritBurstExclusions = [false, false, false, false, false];
       }
 
     },
@@ -3486,7 +3492,8 @@ export default {
       } else if (this.selectedScenario === 2) {
         preset.auharuhai_config = {
           preliminaryRoundSelections: [...this.preliminaryRoundSelections],
-          aoharuTeamNameSelection: this.aoharuTeamNameSelection
+          aoharuTeamNameSelection: this.aoharuTeamNameSelection,
+          spiritBurstExclusions: [...this.spiritBurstExclusions]
         };
       }
       let payload = {

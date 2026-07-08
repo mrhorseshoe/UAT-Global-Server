@@ -100,6 +100,16 @@
               </div>
             </div>
           </div>
+          <div class="row mt-3">
+            <div class="col-12 section-card p-3">
+              <h6 class="mb-2">Spirit Burst Exclusions</h6>
+              <p class="small text-muted mb-2">Spirit Bursts and Extreme Spirit Bursts on checked stats are ignored when scoring trainings, until Senior Year Late December (from then on all bursts count again).</p>
+              <div class="form-check form-check-inline" v-for="(statName, i) in ['Speed', 'Stamina', 'Power', 'Guts', 'Wit']" :key="statName">
+                <input class="form-check-input" type="checkbox" :id="'sbe_' + i" v-model="internalSpiritBurstExclusions[i]">
+                <label class="form-check-label" :for="'sbe_' + i">{{ statName }}</label>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="modal-footer d-none"></div>
       </div>
@@ -125,6 +135,10 @@ export default {
       type: Number,
       default: 4
     },
+    spiritBurstExclusions: {
+      type: Array,
+      default: () => [false, false, false, false, false]
+    },
   },
   emits: ['update:show', 'confirm'],
   data() {
@@ -132,6 +146,7 @@ export default {
       // Internal data for the modal, initialized from props
       internalPreliminaryRoundSelections: [...this.preliminaryRoundSelections],
       internalAoharuTeamNameSelection: this.aoharuTeamNameSelection,
+      internalSpiritBurstExclusions: [...this.spiritBurstExclusions],
     };
   },
   watch: {
@@ -156,6 +171,12 @@ export default {
       deep: true
     },
     aoharuTeamNameSelection(newVal) { this.internalAoharuTeamNameSelection = newVal; },
+    spiritBurstExclusions: {
+      handler(newVal) {
+        this.internalSpiritBurstExclusions = [...newVal];
+      },
+      deep: true
+    },
   },
   methods: {
     confirm() {
@@ -163,6 +184,7 @@ export default {
       this.$emit('confirm', {
         preliminaryRoundSelections: this.internalPreliminaryRoundSelections.map(Number),
         aoharuTeamNameSelection: Number(this.internalAoharuTeamNameSelection),
+        spiritBurstExclusions: this.internalSpiritBurstExclusions.map(Boolean),
       });
       this.$emit('update:show', false); // Close the modal
       
