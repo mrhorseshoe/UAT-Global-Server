@@ -13,7 +13,7 @@ import hashlib
 
 from bot.base.task import TaskStatus, EndTaskReason
 from bot.recog.image_matcher import image_match, compare_color_equal
-from bot.recog.ocr import ocr_line, find_similar_text
+from bot.recog.ocr import ocr_line, find_similar_text, ocr_digits
 from module.umamusume.asset.race_data import RACE_LIST, UMAMUSUME_RACE_TEMPLATE_PATH
 from module.umamusume.context import UmamusumeContext
 from module.umamusume.types import SupportCardInfo
@@ -440,6 +440,19 @@ def parse_umamusume_basic_ability_value(ctx: UmamusumeContext, img):
                                        (255, 255, 255))
     skill_point_text = ocr_line(sub_img_skill)
 
+    # Stat caps ("/1314" line under each current value). Unity Cup 2.0 raised caps
+    # past 1200, so they are read from the screen instead of assumed.
+    cap_cols = [(70, 139), (183, 251), (289, 364), (409, 476), (521, 588)]
+    caps = []
+    for x1, x2 in cap_cols:
+        try:
+            sub_img_cap = img[885:908, max(0, x1 - 15):x2]
+            sub_img_cap = cv2.copyMakeBorder(sub_img_cap, 20, 20, 20, 20, cv2.BORDER_CONSTANT, None, (255, 255, 255))
+            caps.append(trans_attribute_cap_value(ocr_digits(sub_img_cap)))
+        except Exception:
+            caps.append(0)
+    ctx.cultivate_detail.turn_info.uma_attribute_cap = caps
+
     ctx.cultivate_detail.turn_info.uma_attribute.speed = trans_attribute_value(speed_text, ctx,
                                                                                TrainingType.TRAINING_TYPE_SPEED)
     ctx.cultivate_detail.turn_info.uma_attribute.stamina = trans_attribute_value(stamina_text, ctx,
@@ -451,6 +464,20 @@ def parse_umamusume_basic_ability_value(ctx: UmamusumeContext, img):
     ctx.cultivate_detail.turn_info.uma_attribute.intelligence = trans_attribute_value(intelligence_text, ctx,
                                                                                       TrainingType.TRAINING_TYPE_INTELLIGENCE)
     ctx.cultivate_detail.turn_info.uma_attribute.skill_point = trans_attribute_value(skill_point_text, ctx)
+
+
+def trans_attribute_cap_value(text: str) -> int:
+    # Only digits after the slash belong to the cap; OCR sometimes catches a stray
+    # character from the grade badge or current value to the left.
+    if "/" in text:
+        text = text.split("/")[-1]
+    digits = re.sub("\\D", "", text)
+    if digits == "":
+        return 0
+    val = int(digits)
+    if val < 300 or val > 3000:
+        return 0
+    return val
 
 
 def trans_attribute_value(text: str, ctx: UmamusumeContext,

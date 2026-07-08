@@ -537,6 +537,7 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         special_counts = [0, 0, 0, 0, 0]
         spirit_counts = [0, 0, 0, 0, 0]
         esb_counts = [0, 0, 0, 0, 0]
+        burst_excluded_list = [False, False, False, False, False]
 
         log.info("Score:")
         log.info(f"lv1: {w_lv1}")
@@ -683,6 +684,7 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
                         burst_excluded = bool(excl[idx])
                 except Exception:
                     burst_excluded = False
+            burst_excluded_list[idx] = burst_excluded
             if burst_excluded and (spirit_counts[idx] > 0 or esb_counts[idx] > 0):
                 log.info(f"  Spirit bursts on {names[idx]} excluded by config until Senior Late Dec")
             if esb_counts[idx] > 0 and not burst_excluded:
@@ -771,26 +773,37 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
 
             try:
                 expect_attr = ctx.cultivate_detail.expect_attribute
+                target = 0.0
                 if isinstance(expect_attr, list) and len(expect_attr) == 5:
+                    target = float(expect_attr[idx])
+                game_caps = getattr(ctx.cultivate_detail.turn_info, 'uma_attribute_cap', None)
+                game_cap = 0.0
+                if isinstance(game_caps, (list, tuple)) and len(game_caps) == 5:
+                    game_cap = float(game_caps[idx])
+                # Damp against whichever limit bites first: the user's target or the
+                # in-game cap read via OCR (gains past the real cap are wasted).
+                if target > 0 and game_cap > 0:
+                    cap_val = min(target, game_cap)
+                else:
+                    cap_val = target if target > 0 else game_cap
+                if cap_val > 0:
                     uma = ctx.cultivate_detail.turn_info.uma_attribute
                     curr_vals = [uma.speed, uma.stamina, uma.power, uma.will, uma.intelligence]
-                    cap_val = float(expect_attr[idx])
                     curr_val = float(curr_vals[idx])
-                    if cap_val > 0:
-                        ratio = curr_val / cap_val
-                        label = names[idx]
-                        if ratio > 0.95:
-                            log.info(f"{label} >95% of target: -100% to score")
-                            score *= 0.0
-                        elif ratio >= 0.90:
-                            log.info(f"{label} >=90% of target: -30% to score")
-                            score *= 0.7
-                        elif ratio >= 0.80:
-                            log.info(f"{label} >=80% of target: -20% to score")
-                            score *= 0.8
-                        elif ratio >= 0.70:
-                            log.info(f"{label} >=70% of target: -10% to score")
-                            score *= 0.9
+                    ratio = curr_val / cap_val
+                    label = names[idx]
+                    if ratio > 0.95:
+                        log.info(f"{label} >95% of target/cap ({int(cap_val)}): -100% to score")
+                        score *= 0.0
+                    elif ratio >= 0.90:
+                        log.info(f"{label} >=90% of target/cap ({int(cap_val)}): -30% to score")
+                        score *= 0.7
+                    elif ratio >= 0.80:
+                        log.info(f"{label} >=80% of target/cap ({int(cap_val)}): -20% to score")
+                        score *= 0.8
+                    elif ratio >= 0.70:
+                        log.info(f"{label} >=70% of target/cap ({int(cap_val)}): -10% to score")
+                        score *= 0.9
             except Exception:
                 pass
             try:
@@ -836,7 +849,13 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         eps = 1e-9
         # relevant_counts = [getattr(ctx.cultivate_detail.turn_info.training_info_list[i], 'relevant_count', 0) for i in range(5)]
         wit_fallback_threshold = getattr(ctx.cultivate_detail, 'wit_fallback_threshold', 0.01)
-        if all(s < wit_fallback_threshold for s in computed_scores):
+        # An extreme spirit burst is free training (0% failure) with huge gains, so a
+        # lane that has one wins outright unless excluded in the Unity Cup config.
+        esb_lanes = [i for i in range(5) if esb_counts[i] > 0 and not burst_excluded_list[i]]
+        if esb_lanes:
+            chosen_idx = esb_lanes[0] if len(esb_lanes) == 1 else int(max(esb_lanes, key=lambda i: computed_scores[i]))
+            log.info(f"Extreme spirit burst on {names[chosen_idx]}: top priority override")
+        elif all(s < wit_fallback_threshold for s in computed_scores):
             log.info(f"no good training option (all scores < {wit_fallback_threshold:.2f}). umamusume is a wit game")
             chosen_idx = 4
         elif date >= 61 and sum(rbc_counts) == 0:

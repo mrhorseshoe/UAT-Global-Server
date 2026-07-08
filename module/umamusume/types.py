@@ -110,6 +110,9 @@ class TurnInfo:
     training_info_list: list[TrainingInfo]
     parse_main_menu_finish: bool
     uma_attribute: UmaAttribute
+    # In-game stat caps (speed/stamina/power/guts/wit) OCR'd from the main menu;
+    # 0 means the cap could not be read this turn.
+    uma_attribute_cap: list[int]
     remain_stamina: int
     motivation_level: MotivationLevel
     medic_room_available: bool
@@ -128,6 +131,7 @@ class TurnInfo:
         self.training_info_list = [TrainingInfo(), TrainingInfo(), TrainingInfo(), TrainingInfo(), TrainingInfo()]
         self.parse_main_menu_finish = False
         self.uma_attribute = UmaAttribute()
+        self.uma_attribute_cap = [0, 0, 0, 0, 0]
         self.remain_stamina = -1
         self.motivation_level = MotivationLevel.MOTIVATION_LEVEL_UNKNOWN
         self.medic_room_available = False
