@@ -1164,6 +1164,14 @@ def script_cultivate_event(ctx: UmamusumeContext):
     
     choice_index = force_choice_index if force_choice_index is not None else get_event_choice(ctx, event_name)
     if not isinstance(choice_index, int) or choice_index <= 0:
+        # Unknown event (e.g. new Unity Cup 2.0 story events). Returning without a
+        # click soft-locks the run until watchdog recovery, which restores the game
+        # to the same event. If choice buttons were detected, take the top one.
+        if isinstance(selectors, list) and 0 < len(selectors) <= 5:
+            target_pt = selectors[0]
+            log.warning(f"Unknown event '{event_name}': picking top choice so the run does not stall")
+            ctx.ctrl.click(int(target_pt[0]), int(target_pt[1]), "Event option-1 (unknown event fallback)")
+            ctx.cultivate_detail.event_cooldown_until = time.time() + 2.5
         return
     if choice_index > 5:
         choice_index = 2
