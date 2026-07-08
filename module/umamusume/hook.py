@@ -302,7 +302,9 @@ def after_hook(ctx: UmamusumeContext):
             if image_match(img[1200:1222, 467:553], REF_RACE_END2).find_match:
                 ctx.ctrl.click(508, 1196, 'race end2 b')
                 return
-            if image_match(img[7:31, 24:180], REF_TEAM_SHOWDOWN).find_match:
+            # Wider box than the title itself: on the Unity Cup 2.0 showdown screens
+            # (Elite Team / S+ Team Zenith) the title sits ~8px further left.
+            if image_match(img[0:40, 0:200], REF_TEAM_SHOWDOWN).find_match:
                 ctx.ctrl.click(354, 961, 'team showdown')
                 time.sleep(1)
                 ctx.ctrl.click(522, 930, 'select opp2 cont')
