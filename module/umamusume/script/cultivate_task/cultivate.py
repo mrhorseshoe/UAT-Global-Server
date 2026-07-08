@@ -536,6 +536,7 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         rbc_counts = [0, 0, 0, 0, 0]
         special_counts = [0, 0, 0, 0, 0]
         spirit_counts = [0, 0, 0, 0, 0]
+        esb_counts = [0, 0, 0, 0, 0]
 
         log.info("Score:")
         log.info(f"lv1: {w_lv1}")
@@ -582,6 +583,8 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
                     special_counts[idx] += stc
                 if bool(getattr(sc, 'spirit_explosion', False)):
                     spirit_counts[idx] += 1
+                if bool(getattr(sc, 'extreme_spirit_explosion', False)):
+                    esb_counts[idx] += 1
                 if ctype == SupportCardType.SUPPORT_CARD_TYPE_NPC:
                     npc += 1
                     score += 0.05
@@ -669,6 +672,13 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             if stc_lane > 0:
                 log.info(f"  Special training bonus: +{w_special:.3f}")
                 score += float(w_special)
+            if esb_counts[idx] > 0:
+                try:
+                    esb_w = float(getattr(ctx.cultivate_detail, 'extreme_spirit_burst_score', 0.5))
+                except Exception:
+                    esb_w = 0.5
+                log.info(f"  Extreme spirit burst: {esb_counts[idx]} cards, bonus +{esb_w:.3f}")
+                score += esb_w
             try:
                 se_w = float(se_weights[idx]) if isinstance(se_weights, (list, tuple)) and len(se_weights) == 5 else 0.0
             except Exception:

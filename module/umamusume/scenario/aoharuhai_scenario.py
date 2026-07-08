@@ -123,21 +123,47 @@ class AoharuHaiScenario(BaseScenario):
 
             arrow_roi3 = roi_gray[max(ay1 - 10, 0):ay2, ax1:ax2]
 
+            # Extreme Spirit Burst: the icon bounces ~30px above the card top, so it
+            # searches a taller strip of the full screenshot, not the card ROI. The icon
+            # shares its chevron shape with the orange special-train arrow and matching is
+            # grayscale, so a match must also pass a magenta color gate.
+            extreme_spirit_explosion = False
+            try:
+                esb_y1 = max(0, base_y - 30)
+                esb_strip = img[esb_y1:base_y + 80, 620:720]
+                for ref in (REF_EXTREME_SPIRIT_EXPLOSION, REF_EXTREME_SPIRIT_EXPLOSION2, REF_EXTREME_SPIRIT_EXPLOSION3):
+                    m = image_match(esb_strip, ref)
+                    if m.find_match and m.matched_area is not None:
+                        (p1, p2) = m.matched_area
+                        box = esb_strip[p1[1]:p2[1], p1[0]:p2[0]]
+                        if getattr(box, 'size', 0) == 0:
+                            continue
+                        bb = box[:, :, 0].astype(int)
+                        gg = box[:, :, 1].astype(int)
+                        rr = box[:, :, 2].astype(int)
+                        magenta_pixels = int((((rr - gg) > 60) & ((bb - gg) > 60)).sum())
+                        if magenta_pixels > 50:
+                            extreme_spirit_explosion = True
+                            break
+            except Exception:
+                pass
+
             can_incr_special_training = False
-            for ref, sub_roi in (
-                (REF_AOHARU_SPECIAL_TRAIN, arrow_roi),
-                (REF_AOHARU_SPECIAL_TRAIN2, arrow_roi),
-                (REF_AOHARU_SPECIAL_TRAIN3, arrow_roi3),
-            ):
-                try:
-                    if image_match(sub_roi, ref).find_match:
-                        can_incr_special_training = True
-                        break
-                except Exception:
-                    pass
+            if not extreme_spirit_explosion:
+                for ref, sub_roi in (
+                    (REF_AOHARU_SPECIAL_TRAIN, arrow_roi),
+                    (REF_AOHARU_SPECIAL_TRAIN2, arrow_roi),
+                    (REF_AOHARU_SPECIAL_TRAIN3, arrow_roi3),
+                ):
+                    try:
+                        if image_match(sub_roi, ref).find_match:
+                            can_incr_special_training = True
+                            break
+                    except Exception:
+                        pass
 
             spirit_explosion = False
-            if not can_incr_special_training:
+            if not can_incr_special_training and not extreme_spirit_explosion:
                 for ref, sub_roi in (
                     (REF_SPIRIT_EXPLOSION, arrow_roi),
                     (REF_SPIRIT_EXPLOSION2, arrow_roi),
@@ -206,7 +232,8 @@ class AoharuHaiScenario(BaseScenario):
                 card_type=support_card_type,
                 favor=support_card_favor_process,
                 can_incr_special_training=can_incr_special_training,
-                spirit_explosion=spirit_explosion
+                spirit_explosion=spirit_explosion,
+                extreme_spirit_explosion=extreme_spirit_explosion
             )
             info.center = (cx, cy)
             support_card_list_info_result.append(info)

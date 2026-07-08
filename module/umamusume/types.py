@@ -18,6 +18,7 @@ class SupportCardInfo:
     # Youth Cup section
     can_incr_special_training: bool
     spirit_explosion: bool
+    extreme_spirit_explosion: bool
 
     def __init__(self,
                 name: str = "support_card",
@@ -26,6 +27,7 @@ class SupportCardInfo:
                 has_event: bool = False,
                 can_incr_special_training: bool = False,
                 spirit_explosion: bool = False,
+                extreme_spirit_explosion: bool = False,
                 center: tuple[int, int] | None = None):
         self.name = name
         self.card_type = card_type
@@ -33,6 +35,7 @@ class SupportCardInfo:
         self.has_event = has_event
         self.can_incr_special_training = can_incr_special_training
         self.spirit_explosion = spirit_explosion
+        self.extreme_spirit_explosion = extreme_spirit_explosion
         self.center = center
 
 
