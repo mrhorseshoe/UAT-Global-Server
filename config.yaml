@@ -8,4 +8,6 @@ bot:
     device_id: 0
     enabled: auto
     memory_fraction: 0.3
+  log:
+    file_enabled: true
 version: 0.0.1

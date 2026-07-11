@@ -24,8 +24,19 @@ log_colors_config = {
 }
 
 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-log_path = os.path.join(base_path, "log_" + current_time + ".txt")
-ENABLE_FILE_LOG = False
+log_dir = os.path.join(base_path, "logs")
+log_path = os.path.join(log_dir, "log_" + current_time + ".txt")
+
+# Toggled via config.yaml (bot.log.file_enabled). Read directly instead of via
+# config.py because config.py imports this module. One file per bot start.
+ENABLE_FILE_LOG = True
+try:
+    import yaml as _yaml
+    with open("config.yaml", "r", encoding="utf-8") as _f:
+        _cfg = _yaml.safe_load(_f.read()) or {}
+    ENABLE_FILE_LOG = bool(((_cfg.get("bot") or {}).get("log") or {}).get("file_enabled", True))
+except Exception:
+    pass
 
 class TaskLogHandler(logging.Handler):
     def __init__(self, capacity=1000):
@@ -77,10 +88,14 @@ def get_logger(name) -> Logger:
 
         fmt = logging.Formatter('%(asctime)s  %(levelname)-8s [%(funcName)34s] %(filename)-20s: %(message)s')
         if ENABLE_FILE_LOG:
-            file_handler = logging.FileHandler(log_path, encoding='utf-8')
-            file_handler.setFormatter(fmt)
-            file_handler.setLevel(logging.DEBUG)
-            logger.addHandler(file_handler)
+            try:
+                os.makedirs(log_dir, exist_ok=True)
+                file_handler = logging.FileHandler(log_path, encoding='utf-8')
+                file_handler.setFormatter(fmt)
+                file_handler.setLevel(logging.DEBUG)
+                logger.addHandler(file_handler)
+            except Exception:
+                pass
     return logger
 
 
