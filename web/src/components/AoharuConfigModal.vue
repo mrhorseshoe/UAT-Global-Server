@@ -110,6 +110,16 @@
               </div>
             </div>
           </div>
+          <div class="row mt-3">
+            <div class="col-12 section-card p-3">
+              <h6 class="mb-2">Dewloren Flowchart</h6>
+              <p class="small text-muted mb-2">Pick trainings using Dewloren's community flowchart (point table and tiered thresholds) instead of the bot's score weights. Rest, infirmary, recreation and summer-prep decisions follow the flowchart's fixed thresholds, overriding the rest/motivation settings above. Extreme Spirit Bursts keep top priority, races keep the turn, and stats with a positive extra weight count as the flowchart's priority facility (+0.5).</p>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="dewloren_flowchart" v-model="internalDewlorenFlowchart">
+                <label class="form-check-label" for="dewloren_flowchart">Use Dewloren flowchart</label>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="modal-footer d-none"></div>
       </div>
@@ -139,6 +149,10 @@ export default {
       type: Array,
       default: () => [false, false, false, false, false]
     },
+    dewlorenFlowchart: {
+      type: Boolean,
+      default: false
+    },
   },
   emits: ['update:show', 'confirm'],
   data() {
@@ -147,6 +161,7 @@ export default {
       internalPreliminaryRoundSelections: [...this.preliminaryRoundSelections],
       internalAoharuTeamNameSelection: this.aoharuTeamNameSelection,
       internalSpiritBurstExclusions: [...this.spiritBurstExclusions],
+      internalDewlorenFlowchart: this.dewlorenFlowchart,
     };
   },
   watch: {
@@ -177,6 +192,7 @@ export default {
       },
       deep: true
     },
+    dewlorenFlowchart(newVal) { this.internalDewlorenFlowchart = newVal; },
   },
   methods: {
     confirm() {
@@ -185,6 +201,7 @@ export default {
         preliminaryRoundSelections: this.internalPreliminaryRoundSelections.map(Number),
         aoharuTeamNameSelection: Number(this.internalAoharuTeamNameSelection),
         spiritBurstExclusions: this.internalSpiritBurstExclusions.map(Boolean),
+        dewlorenFlowchart: Boolean(this.internalDewlorenFlowchart),
       });
       this.$emit('update:show', false); // Close the modal
       

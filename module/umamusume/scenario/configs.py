@@ -33,6 +33,9 @@ class AoharuConfig:
     # Per-stat (speed/stamina/power/guts/wit) flags; True means spirit bursts and
     # extreme spirit bursts on that training are ignored until Senior Late December.
     spirit_burst_exclusions: list[bool]
+    # Replace training scoring and rest/recreation decisions with Dewloren's
+    # community flowchart (point table + tiered thresholds).
+    dewloren_flowchart: bool
 
     def __init__(self, config: dict):
         prs = config.get("preliminaryRoundSelections", config.get("preliminary_round_selections"))
@@ -45,6 +48,7 @@ class AoharuConfig:
         if not isinstance(sbe, (list, tuple)) or len(sbe) != 5:
             sbe = [False] * 5
         self.spirit_burst_exclusions = [bool(x) for x in sbe]
+        self.dewloren_flowchart = bool(config.get("dewlorenFlowchart", config.get("dewloren_flowchart", False)))
 
     """ Get opponent index for specified round, index starts from 0, preliminary round 1 is 0 """
     def get_opponent(self, round_index: int) -> int:

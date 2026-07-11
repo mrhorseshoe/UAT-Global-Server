@@ -353,6 +353,96 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
                     ctx.ctrl.click_by_point(CULTIVATE_RACE)
 
 
+# === Dewloren flowchart (community Unity Cup strategy) ===
+# Point table: total lane value for N occurrences of each modifier.
+DEWLOREN_FRIENDSHIP = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]     # unmaxed (blue/green) bonds
+DEWLOREN_RAINBOW = [0.0, 1.5, 3.0, 4.0, 5.0, 6.0]
+DEWLOREN_WHITE_FLAME = [0.0, 0.5, 1.0, 2.0, 3.0, 4.0]    # unfinished spirit bursts, until Senior Late Dec
+DEWLOREN_SPIRIT_BURST = [0.0, 2.0, 3.0, 4.0, 5.0, 6.0]   # on non-excluded stats only
+DEWLOREN_HINT = 0.5             # hint, counted only when the lane still raises a bond
+DEWLOREN_PRIORITY_FACILITY = 0.5  # lanes with a positive user extra weight
+DEWLOREN_MAX_FAILURE = 25       # lanes above this failure % are not picked (wit excepted)
+
+
+def dewloren_lane_values(date, bond_counts, rbc_counts, special_counts, spirit_counts,
+                         burst_excluded_list, hint_list, extra_weight):
+    values = [0.0, 0.0, 0.0, 0.0, 0.0]
+    for i in range(5):
+        v = DEWLOREN_FRIENDSHIP[min(int(bond_counts[i]), 5)]
+        v += DEWLOREN_RAINBOW[min(int(rbc_counts[i]), 5)]
+        if date < 72:
+            v += DEWLOREN_WHITE_FLAME[min(int(special_counts[i]), 5)]
+        if not burst_excluded_list[i]:
+            v += DEWLOREN_SPIRIT_BURST[min(int(spirit_counts[i]), 5)]
+        if hint_list[i] and bond_counts[i] > 0:
+            v += DEWLOREN_HINT
+        try:
+            if float(extra_weight[i]) > 0:
+                v += DEWLOREN_PRIORITY_FACILITY
+        except Exception:
+            pass
+        values[i] = v
+    return values
+
+
+def dewloren_decide(date, energy, mood, medic_available, values, bond_counts,
+                    failure_rates, pal_recreation_available):
+    """Tiered turn decision per Dewloren's flowchart. ESB handling and races sit
+    above this and are resolved by the caller. Returns (operation_type, lane or None).
+    Career-goal races are handled by the regular race flow before this runs."""
+    def eligible(i):
+        return i == 4 or failure_rates[i] <= DEWLOREN_MAX_FAILURE
+
+    def best_at(threshold, need_bond=False):
+        cands = [i for i in range(5)
+                 if eligible(i) and values[i] >= threshold and (bond_counts[i] > 0 or not need_bond)]
+        if not cands:
+            return None
+        return max(cands, key=lambda i: (values[i], bond_counts[i]))
+
+    # A. Summer camp next turn: rest/wit unless a 4+ lane at 0-2% risk exists
+    if date in (35, 36, 59, 60):
+        i = best_at(4.0)
+        if i is not None and failure_rates[i] <= 2:
+            return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, i)
+        if energy < 60:
+            return (TurnOperationType.TURN_OPERATION_TYPE_REST, None)
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, 4)
+    # A. Infirmary on any status condition
+    if medic_available:
+        return (TurnOperationType.TURN_OPERATION_TYPE_MEDIC, None)
+    # A. Low energy: rest, with the chart's exceptions
+    if energy <= 30:
+        if values[4] >= 3.0:
+            return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, 4)
+        i = best_at(4.0)
+        if i is not None:
+            return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, i)
+        if pal_recreation_available and energy >= 20:
+            return (TurnOperationType.TURN_OPERATION_TYPE_TRIP, None)
+        return (TurnOperationType.TURN_OPERATION_TYPE_REST, None)
+    # B. Bond-raising lane at 3+, then best lane at 3+
+    i = best_at(3.0, need_bond=True)
+    if i is None:
+        i = best_at(3.0)
+    if i is not None:
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, i)
+    # B. Recreation when mood is Normal or worse (3 = Normal on the 1-5 scale)
+    if mood <= 3:
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRIP, None)
+    # B. Best lane at 1.5+
+    i = best_at(1.5)
+    if i is not None:
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, i)
+    # B. Skip turn: wit that still raises a bond, else anything at 1+, else wit
+    if bond_counts[4] > 0:
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, 4)
+    i = best_at(1.0)
+    if i is not None:
+        return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, i)
+    return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, 4)
+
+
 def script_cultivate_training_select(ctx: UmamusumeContext):
     if ctx.cultivate_detail.turn_info is None:
         log.warning("Turn information not initialized")
@@ -379,6 +469,7 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
     # and outranks rest/trip/medic. get_operation still decides rest below.
     esb_lanes = []
     local_training_type = TrainingType.TRAINING_TYPE_INTELLIGENCE
+    flow_op = None  # (operation_type, lane) when the Dewloren flowchart decides the turn
     if not ctx.cultivate_detail.turn_info.parse_train_info_finish:
         def _parse_training_in_thread(ctx, img, train_type):
             """Helper function to run parsing in a separate thread."""
@@ -528,6 +619,8 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         esb_counts = [0, 0, 0, 0, 0]
         burst_excluded_list = [False, False, False, False, False]
         effective_gains = [0.0, 0.0, 0.0, 0.0, 0.0]
+        bond_counts = [0, 0, 0, 0, 0]
+        failure_list = [0, 0, 0, 0, 0]
 
         log.info("Score:")
         log.info(f"lv1: {w_lv1}")
@@ -856,6 +949,8 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             log.info(f"  Total score: {score:.3f}")
             computed_scores[idx] = score
             rbc_counts[idx] = rbc
+            bond_counts[idx] = lv1c + lv2c
+            failure_list[idx] = fr if fr >= 0 else 0
 
         ctx.cultivate_detail.turn_info.parse_train_info_finish = True
 
@@ -911,6 +1006,40 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
                 chosen_idx = 4 if 4 in ties else (min(ties) if len(ties) > 0 else int(np.argmax(computed_scores)))
         local_training_type = TrainingType(chosen_idx + 1)
 
+        # Dewloren flowchart mode: replace the score-based pick and the AI's
+        # rest/trip/medic thresholds with the community flowchart. ESB lanes are
+        # resolved above it, so it only runs when no ESB is available.
+        try:
+            aoharu_cfg = getattr(getattr(ctx.task.detail, 'scenario_config', None), 'aoharu_config', None)
+            dewloren_on = (bool(getattr(aoharu_cfg, 'dewloren_flowchart', False))
+                           and ctx.cultivate_detail.scenario.scenario_type() == ScenarioType.SCENARIO_TYPE_AOHARUHAI)
+        except Exception:
+            dewloren_on = False
+        if dewloren_on and not esb_lanes:
+            try:
+                hint_list = [bool(getattr(ctx.cultivate_detail.turn_info.training_info_list[i], 'has_hint', False))
+                             for i in range(5)]
+                flow_values = dewloren_lane_values(date, bond_counts, rbc_counts, special_counts,
+                                                   spirit_counts, burst_excluded_list, hint_list, extra_weight)
+                from bot.conn.fetch import fetch_state
+                state = fetch_state()
+                energy_now = state.get("energy", 0)
+                mood_raw = state.get("mood")
+                mood_now = mood_raw if mood_raw is not None else 4
+                pal_available = should_use_pal_outing_simple(ctx)
+                flow_op = dewloren_decide(date, energy_now, mood_now,
+                                          bool(ctx.cultivate_detail.turn_info.medic_room_available),
+                                          flow_values, bond_counts, failure_list, pal_available)
+                log.info("Dewloren flowchart values: " + ", ".join(f"{names[i]}={flow_values[i]:.1f}" for i in range(5)))
+                op_name = flow_op[0].name.replace("TURN_OPERATION_TYPE_", "")
+                lane_name = names[flow_op[1]] if flow_op[1] is not None else ""
+                log.info(f"Dewloren flowchart decision: {op_name} {lane_name}".rstrip())
+                if flow_op[0] == TurnOperationType.TURN_OPERATION_TYPE_TRAINING and flow_op[1] is not None:
+                    local_training_type = TrainingType(flow_op[1] + 1)
+            except Exception as e:
+                log.warning(f"Dewloren flowchart failed, falling back to score-based pick: {e}")
+                flow_op = None
+
 
     from module.umamusume.script.cultivate_task.ai import get_operation
     op_ai = get_operation(ctx)
@@ -920,16 +1049,23 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         op.training_type = local_training_type
         ctx.cultivate_detail.turn_info.turn_operation = op
     else:
-        if op_ai.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_TRAINING:
+        if esb_lanes and op_ai.turn_operation_type != TurnOperationType.TURN_OPERATION_TYPE_RACE:
+            # An extreme spirit burst never fails regardless of energy or mood,
+            # so it outranks rest/trip/medic; scheduled races still win the turn.
+            if op_ai.turn_operation_type != TurnOperationType.TURN_OPERATION_TYPE_TRAINING:
+                log.info(f"Extreme spirit burst outranks {op_ai.turn_operation_type.name} - training instead")
+            op_ai.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_TRAINING
+            op_ai.training_type = local_training_type
+        elif flow_op is not None and op_ai.turn_operation_type != TurnOperationType.TURN_OPERATION_TYPE_RACE:
+            # Dewloren flowchart mode: its decision replaces the AI's
+            # rest/trip/medic thresholds entirely; races still win the turn.
+            op_ai.turn_operation_type = flow_op[0]
+            if flow_op[0] == TurnOperationType.TURN_OPERATION_TYPE_TRAINING and flow_op[1] is not None:
+                op_ai.training_type = TrainingType(flow_op[1] + 1)
+        elif op_ai.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_TRAINING:
             # the local scoring has the full picture (stat gains, spirit bursts,
             # ESBs); ai.py's internal score does not, so its lane choice (only
             # ever set by the summer-conserve branch) is always replaced
-            op_ai.training_type = local_training_type
-        elif esb_lanes and op_ai.turn_operation_type != TurnOperationType.TURN_OPERATION_TYPE_RACE:
-            # An extreme spirit burst never fails regardless of energy or mood,
-            # so it outranks rest/trip/medic; scheduled races still win the turn.
-            log.info(f"Extreme spirit burst outranks {op_ai.turn_operation_type.name} - training instead")
-            op_ai.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_TRAINING
             op_ai.training_type = local_training_type
         ctx.cultivate_detail.turn_info.turn_operation = op_ai
 
@@ -943,7 +1079,8 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
     if (ctx.cultivate_detail.prioritize_recreation and
         ctx.cultivate_detail.pal_event_stage > 0 and
         best_idx_tmp is not None and
-        not esb_lanes):  # never trade an ESB turn for a pal outing
+        not esb_lanes and     # never trade an ESB turn for a pal outing
+        flow_op is None):     # the Dewloren flowchart does its own recreation calls
         
         op_from_ai = ctx.cultivate_detail.turn_info.turn_operation
         
