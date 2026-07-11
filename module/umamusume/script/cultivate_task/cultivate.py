@@ -4,7 +4,8 @@ import threading
 
 import numpy as np
 
-from bot.base.task import TaskStatus, EndTaskReason
+from bot.base.task import TaskStatus, EndTaskReason, TaskExecuteMode
+from module.umamusume.task import EndTaskReason as UEndTaskReason
 from module.umamusume.asset.point import *
 from module.umamusume.define import TrainingType
 from module.umamusume.types import TurnInfo, TurnOperationType, TurnOperation
@@ -2054,6 +2055,25 @@ def script_factor_receive(ctx: UmamusumeContext):
     else:
         time.sleep(2)
         parse_factor(ctx)
+
+
+def script_factor_reroll(ctx: UmamusumeContext):
+    # End-of-run sparks screen with the reroll offer (30 TP), added in the
+    # July 2026 patch. Factors still get parsed here like on FACTOR_RECEIVE.
+    if not ctx.cultivate_detail.parse_factor_done:
+        time.sleep(2)
+        parse_factor(ctx)
+        return
+    # Stopping only makes sense for a single-run loop session: the task ends
+    # with the game left on this screen so the user can reroll manually.
+    detail = ctx.task.detail
+    single_run = (ctx.task.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_LOOP
+                  and (getattr(detail, 'loop_count', 0) or 0) == 1)
+    if getattr(detail, 'stop_at_spark_reroll', False) and single_run:
+        log.info("🎲 Spark reroll screen reached - stopping so the user can reroll manually")
+        ctx.task.end_task(TaskStatus.TASK_STATUS_SUCCESS, UEndTaskReason.STOP_AT_SPARK_REROLL)
+        return
+    ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
 
 
 def script_historical_rating_update(ctx: UmamusumeContext):

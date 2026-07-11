@@ -41,6 +41,12 @@
                   <label class="form-check-label" for="checkTeamTrials">Team Trials (run between careers)</label>
                 </div>
               </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6 && loopCount === 1 && !doTeamTrials">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="checkStopSparkReroll" v-model="stopAtSparkReroll">
+                  <label class="form-check-label" for="checkStopSparkReroll">Stop at spark reroll screen (single run only)</label>
+                </div>
+              </div>
               <div class="row">
                 <div class="col">
                   <div class="form-group">
@@ -1899,6 +1905,7 @@ export default {
       selectedExecuteMode: 6,
       loopCount: 0,
       doTeamTrials: false,
+      stopAtSparkReroll: false,
       expectTimes: 0,
       cron: "* * * * *",
 
@@ -2983,6 +2990,8 @@ export default {
         attachment_data: {
           "scenario": this.selectedScenario,
           "loop_count": this.selectedExecuteMode === 6 ? this.loopCount : 0,
+          // only meaningful for a single-run loop; force off otherwise
+          "stop_at_spark_reroll": (this.selectedExecuteMode === 6 && this.loopCount === 1 && !this.doTeamTrials) ? this.stopAtSparkReroll : false,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,

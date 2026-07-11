@@ -59,6 +59,7 @@ script_dicts: Dict[UmamusumeTaskType, dict] = {
         GOAL_FAILED: script_cultivate_goal_failed,
         CULTIVATE_LEVEL_RESULT: script_cultivate_level_result,
         FACTOR_RECEIVE:script_factor_receive,
+        FACTOR_REROLL: script_factor_reroll,
         HISTORICAL_RATING_UPDATE: script_historical_rating_update,
         SCENARIO_RATING_UPDATE: script_scenario_rating_update,
         CULTIVATE_URA_RACE_1: script_cultivate_goal_race,

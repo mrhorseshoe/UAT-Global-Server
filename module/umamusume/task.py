@@ -46,11 +46,14 @@ class TaskDetail:
     # LOOP mode run limit: 0 = loop until canceled
     loop_count: int
     loops_done: int
+    # stop at the end-of-run spark reroll screen (single-run loop sessions only)
+    stop_at_spark_reroll: bool
 
 
 class EndTaskReason(Enum):
     TP_NOT_ENOUGH = "训练值不足"
     DIFFICULTY_LOCKED = "难度未解锁"
+    STOP_AT_SPARK_REROLL = "Stopped at spark reroll screen"
 
 
 class UmamusumeTask(Task):
@@ -158,6 +161,7 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.do_tt_next = attachment_data.get('do_tt_next', False)
     td.loop_count = int(attachment_data.get('loop_count', 0) or 0)
     td.loops_done = int(attachment_data.get('loops_done', 0) or 0)
+    td.stop_at_spark_reroll = bool(attachment_data.get('stop_at_spark_reroll', False))
 
     ut.detail = td
     return ut
