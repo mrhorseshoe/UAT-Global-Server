@@ -374,23 +374,11 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             ctx.ctrl.click_by_point(RETURN_TO_CULTIVATE_MAIN_MENU)
             return
 
-    from bot.conn.fetch import read_energy
-    energy = read_energy()
-    if energy == 0:
-        time.sleep(0.37)
-        energy = read_energy()
-    limit = int(getattr(ctx.cultivate_detail, 'rest_treshold', getattr(ctx.cultivate_detail, 'fast_path_energy_limit', 48)))
-    if energy <= limit:
-        op = TurnOperation()
-        if should_use_pal_outing_simple(ctx):
-            op.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_TRIP
-        else:
-            log.info(f"rest threshold: energy={energy}, threshold={limit} - prioritizing rest")
-            op.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_REST
-        ctx.cultivate_detail.turn_info.turn_operation = op
-        ctx.ctrl.click_by_point(RETURN_TO_CULTIVATE_MAIN_MENU)
-        return
-
+    # No low-energy fast path here: lanes must be parsed even when resting is
+    # likely, because an extreme spirit burst never fails regardless of energy
+    # and outranks rest/trip/medic. get_operation still decides rest below.
+    esb_lanes = []
+    local_training_type = TrainingType.TRAINING_TYPE_INTELLIGENCE
     if not ctx.cultivate_detail.turn_info.parse_train_info_finish:
         def _parse_training_in_thread(ctx, img, train_type):
             """Helper function to run parsing in a separate thread."""
@@ -539,6 +527,7 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         spirit_counts = [0, 0, 0, 0, 0]
         esb_counts = [0, 0, 0, 0, 0]
         burst_excluded_list = [False, False, False, False, False]
+        effective_gains = [0.0, 0.0, 0.0, 0.0, 0.0]
 
         log.info("Score:")
         log.info(f"lv1: {w_lv1}")
@@ -564,6 +553,48 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
             rest_threshold = int(getattr(ctx.cultivate_detail, 'rest_treshold', getattr(ctx.cultivate_detail, 'fast_path_energy_limit', 48)))
         except Exception:
             rest_threshold = 48
+
+        # Per-stat near-cap damp factors, shared by all lanes: gains into a stat
+        # close to its user target or OCRd in-game cap are (partly) wasted.
+        stat_damp = [1.0, 1.0, 1.0, 1.0, 1.0]
+        try:
+            expect_attr = ctx.cultivate_detail.expect_attribute
+            if isinstance(expect_attr, list) and len(expect_attr) == 5:
+                targets = [float(v) for v in expect_attr]
+            else:
+                targets = [0.0] * 5
+            game_caps = getattr(ctx.cultivate_detail.turn_info, 'uma_attribute_cap', None)
+            if not (isinstance(game_caps, (list, tuple)) and len(game_caps) == 5):
+                game_caps = [0.0] * 5
+            uma = ctx.cultivate_detail.turn_info.uma_attribute
+            curr_vals = [float(uma.speed), float(uma.stamina), float(uma.power), float(uma.will), float(uma.intelligence)]
+            for s in range(5):
+                game_cap = float(game_caps[s])
+                # a cap below the current value is impossible in-game: OCR misread
+                if 0 < game_cap < curr_vals[s]:
+                    log.info(f"{names[s]} OCR cap {int(game_cap)} below current {int(curr_vals[s])} - ignoring misread cap")
+                    game_cap = 0.0
+                # Damp against whichever limit bites first: the user's target or the
+                # in-game cap read via OCR (gains past the real cap are wasted).
+                if targets[s] > 0 and game_cap > 0:
+                    cap_val = min(targets[s], game_cap)
+                else:
+                    cap_val = targets[s] if targets[s] > 0 else game_cap
+                if cap_val <= 0:
+                    continue
+                ratio = curr_vals[s] / cap_val
+                if ratio > 0.95:
+                    stat_damp[s] = 0.0
+                elif ratio >= 0.90:
+                    stat_damp[s] = 0.7
+                elif ratio >= 0.80:
+                    stat_damp[s] = 0.8
+                elif ratio >= 0.70:
+                    stat_damp[s] = 0.9
+                if stat_damp[s] < 1.0:
+                    log.info(f"{names[s]} at {int(round(ratio * 100))}% of target/cap ({int(cap_val)}): gains damped x{stat_damp[s]:.1f}")
+        except Exception:
+            stat_damp = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         for idx in range(5):
             til = ctx.cultivate_detail.turn_info.training_info_list[idx]
@@ -740,6 +771,28 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
                 log.info(f"  Spirit explosion bonus: +{se_bonus:.3f}")
                 score += se_bonus
 
+            # Projected stat gains: big multi-stat trainings (e.g. Unity Cup team
+            # lanes) are valuable even with few bonded support cards. Gains into
+            # near-cap stats are discounted via the per-stat damp factors, and
+            # each OCRd value is clamped to bound misreads.
+            gains = []
+            for attr in ('speed_incr', 'stamina_incr', 'power_incr', 'will_incr', 'intelligence_incr'):
+                try:
+                    g = float(getattr(til, attr, 0) or 0)
+                except Exception:
+                    g = 0.0
+                gains.append(min(max(g, 0.0), 150.0))
+            total_gain = sum(gains)
+            effective_gain = sum(g * stat_damp[s] for s, g in enumerate(gains))
+            effective_gains[idx] = effective_gain
+            if total_gain > 0:
+                try:
+                    gain_w = float(getattr(ctx.cultivate_detail, 'stat_gain_score', 0.005))
+                except Exception:
+                    gain_w = 0.005
+                log.info(f"  Stat gain bonus: +{gain_w * effective_gain:.3f} ({int(total_gain)} total, {int(effective_gain)} effective)")
+                score += gain_w * effective_gain
+
             if pal_count > 0:
                 base_score = score
                 clamped_multiplier = max(0.0, min(1.0, ctx.cultivate_detail.pal_card_multiplier))
@@ -772,39 +825,18 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
                 elif current_energy > 85:
                     pass
 
+            # Near-cap damping, weighted by where this lane's gains actually go:
+            # a lane whose own stat is near cap keeps the share of score that its
+            # secondary gains earn instead of being zeroed outright. Without gain
+            # data, fall back to damping by the lane's own stat as before.
             try:
-                expect_attr = ctx.cultivate_detail.expect_attribute
-                target = 0.0
-                if isinstance(expect_attr, list) and len(expect_attr) == 5:
-                    target = float(expect_attr[idx])
-                game_caps = getattr(ctx.cultivate_detail.turn_info, 'uma_attribute_cap', None)
-                game_cap = 0.0
-                if isinstance(game_caps, (list, tuple)) and len(game_caps) == 5:
-                    game_cap = float(game_caps[idx])
-                # Damp against whichever limit bites first: the user's target or the
-                # in-game cap read via OCR (gains past the real cap are wasted).
-                if target > 0 and game_cap > 0:
-                    cap_val = min(target, game_cap)
+                if total_gain > 0:
+                    lane_mult = effective_gain / total_gain
                 else:
-                    cap_val = target if target > 0 else game_cap
-                if cap_val > 0:
-                    uma = ctx.cultivate_detail.turn_info.uma_attribute
-                    curr_vals = [uma.speed, uma.stamina, uma.power, uma.will, uma.intelligence]
-                    curr_val = float(curr_vals[idx])
-                    ratio = curr_val / cap_val
-                    label = names[idx]
-                    if ratio > 0.95:
-                        log.info(f"{label} >95% of target/cap ({int(cap_val)}): -100% to score")
-                        score *= 0.0
-                    elif ratio >= 0.90:
-                        log.info(f"{label} >=90% of target/cap ({int(cap_val)}): -30% to score")
-                        score *= 0.7
-                    elif ratio >= 0.80:
-                        log.info(f"{label} >=80% of target/cap ({int(cap_val)}): -20% to score")
-                        score *= 0.8
-                    elif ratio >= 0.70:
-                        log.info(f"{label} >=70% of target/cap ({int(cap_val)}): -10% to score")
-                        score *= 0.9
+                    lane_mult = stat_damp[idx]
+                if lane_mult < 1.0:
+                    log.info(f"  Near-cap damping: x{lane_mult:.2f}")
+                    score *= lane_mult
             except Exception:
                 pass
             try:
@@ -859,7 +891,9 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         elif all(s < wit_fallback_threshold for s in computed_scores):
             log.info(f"no good training option (all scores < {wit_fallback_threshold:.2f}). umamusume is a wit game")
             chosen_idx = 4
-        elif date >= 61 and sum(rbc_counts) == 0:
+        elif date >= 61 and sum(rbc_counts) == 0 and max(effective_gains) < 50:
+            # late game without rainbows bond value is moot, so default to wit -
+            # unless a lane still gives a big (non-wasted) stat payout
             chosen_idx = 4
         else:
             if date in (35, 36, 59, 60):
@@ -886,7 +920,16 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         op.training_type = local_training_type
         ctx.cultivate_detail.turn_info.turn_operation = op
     else:
-        if op_ai.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_TRAINING and (op_ai.training_type == TrainingType.TRAINING_TYPE_UNKNOWN):
+        if op_ai.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_TRAINING:
+            # the local scoring has the full picture (stat gains, spirit bursts,
+            # ESBs); ai.py's internal score does not, so its lane choice (only
+            # ever set by the summer-conserve branch) is always replaced
+            op_ai.training_type = local_training_type
+        elif esb_lanes and op_ai.turn_operation_type != TurnOperationType.TURN_OPERATION_TYPE_RACE:
+            # An extreme spirit burst never fails regardless of energy or mood,
+            # so it outranks rest/trip/medic; scheduled races still win the turn.
+            log.info(f"Extreme spirit burst outranks {op_ai.turn_operation_type.name} - training instead")
+            op_ai.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_TRAINING
             op_ai.training_type = local_training_type
         ctx.cultivate_detail.turn_info.turn_operation = op_ai
 
@@ -897,9 +940,10 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
         best_idx_tmp = None
         best_score_tmp = 0.0
     
-    if (ctx.cultivate_detail.prioritize_recreation and 
+    if (ctx.cultivate_detail.prioritize_recreation and
         ctx.cultivate_detail.pal_event_stage > 0 and
-        best_idx_tmp is not None):
+        best_idx_tmp is not None and
+        not esb_lanes):  # never trade an ESB turn for a pal outing
         
         op_from_ai = ctx.cultivate_detail.turn_info.turn_operation
         
