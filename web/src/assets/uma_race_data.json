@@ -3401,6 +3401,51 @@
       "terrain": "Dirt",
       "distance": "Medium",
       "venue": "Ooi"
+    },
+    {
+      "id": 2388,
+      "name": "Zen-Nippon Junior Yushun",
+      "date": "Junior Year Late Dec",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Kawasaki"
+    },
+    {
+      "id": 2389,
+      "name": "Nambu Hai",
+      "date": "Classic Year Early Oct",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Morioka"
+    },
+    {
+      "id": 2390,
+      "name": "Nambu Hai",
+      "date": "Senior Year Early Oct",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Morioka"
+    },
+    {
+      "id": 2391,
+      "name": "Kawasaki Kinen",
+      "date": "Senior Year Early Feb",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Medium",
+      "venue": "Kawasaki"
+    },
+    {
+      "id": 2392,
+      "name": "Kashiwa Kinen",
+      "date": "Senior Year Early May",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Funabashi"
     }
   ]
 }
