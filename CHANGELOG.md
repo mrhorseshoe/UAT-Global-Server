@@ -1,5 +1,9 @@
 # Changelog
 
+## 16/07/2026
+- **Automated spark reroll**: new tickbox plus a Spark Reroll Options popup (desired blue/pink sparks and a minimum star count). The bot rerolls when no desired spark is present and picks the better set on the Spark Selection screen; if neither set qualifies it keeps the one with more white sparks.
+- **Spark reroll carats option**: optional toggle to spend a TP item/carats to restore TP when a career ends with too little to afford a reroll (default off keeps the original sparks). Also fixed the bot getting stuck on the "Restore TP?" prompt when short on TP.
+
 ## 29/12/2025
 - Changed image in the panel.
 - Renamed 2 support cards from chinese to english.

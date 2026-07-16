@@ -1,7 +1,7 @@
 <template>
   <div id="create-task-list-modal" class="modal fade" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content" :class="{ 'dimmed': showAoharuConfigModal || showSupportCardSelectModal }">
+      <div class="modal-content" :class="{ 'dimmed': showAoharuConfigModal || showSupportCardSelectModal || showSparkRerollModal }">
         <div class="modal-header d-flex align-items-center justify-content-between">
           <h5 class="mb-0">Create New Task</h5>
           <div class="header-actions">
@@ -46,6 +46,18 @@
                   <input type="checkbox" class="form-check-input" id="checkStopSparkReroll" v-model="stopAtSparkReroll">
                   <label class="form-check-label" for="checkStopSparkReroll">Stop at spark reroll screen (single run only)</label>
                 </div>
+              </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6 && !doTeamTrials">
+                <div class="d-flex align-items-center">
+                  <div class="form-check mr-3">
+                    <input type="checkbox" class="form-check-input" id="checkSparkRerollEnabled" v-model="sparkRerollEnabled">
+                    <label class="form-check-label" for="checkSparkRerollEnabled">Automate spark reroll (30 TP per reroll)</label>
+                  </div>
+                  <span class="btn btn-sm auto-btn ml-3" v-on:click="openSparkRerollModal">Spark Reroll Options</span>
+                </div>
+                <small class="text-muted" v-if="sparkRerollEnabled && sparkRerollTargets.length === 0">
+                  No desired sparks selected yet - open Spark Reroll Options and check at least one spark.
+                </small>
               </div>
               <div class="row">
                 <div class="col">
@@ -1454,8 +1466,12 @@
       <!-- Support Card Selection Modal -->
       <SupportCardSelectModal v-model:show="showSupportCardSelectModal" @cancel="closeSupportCardSelectModal"
         @confirm="handleSupportCardConfirm"></SupportCardSelectModal>
+      <!-- Spark Reroll Options Modal -->
+      <SparkRerollModal v-model:show="showSparkRerollModal" :targets="sparkRerollTargets"
+        :minStars="sparkRerollMinStars" :useCarats="sparkRerollUseCarats"
+        @confirm="handleSparkRerollConfirm"></SparkRerollModal>
       <!-- Overlay layer, supports two types of modals -->
-      <div v-if="showAoharuConfigModal || showSupportCardSelectModal || showUraConfigModal"
+      <div v-if="showAoharuConfigModal || showSupportCardSelectModal || showUraConfigModal || showSparkRerollModal"
         class="modal-backdrop-overlay" @click.stop></div>
       <!-- Notification -->
       <div class="position-fixed" style="z-index: 5; right: 40%; width: 300px;">
@@ -1773,6 +1789,7 @@ import SkillIcon from './SkillIcon.vue';
 import AoharuConfigModal from './AoharuConfigModal.vue';
 import UraConfigModal from './UraConfigModal.vue';
 import SupportCardSelectModal from './SupportCardSelectModal.vue';
+import SparkRerollModal from './SparkRerollModal.vue';
 import characterData from '../assets/uma_character_data.json';
 import raceData from '../assets/uma_race_data.json';
 // skill database is fetched from the bot server at runtime (GET /api/skills)
@@ -1786,7 +1803,8 @@ export default {
     SkillIcon,
     AoharuConfigModal,
     UraConfigModal,
-    SupportCardSelectModal
+    SupportCardSelectModal,
+    SparkRerollModal
   },
   created() {
     if (typeof this.loadEventList === 'function') {
@@ -1906,6 +1924,11 @@ export default {
       loopCount: 0,
       doTeamTrials: false,
       stopAtSparkReroll: false,
+      sparkRerollEnabled: false,
+      sparkRerollTargets: [],
+      sparkRerollMinStars: 3,
+      sparkRerollUseCarats: false,
+      showSparkRerollModal: false,
       expectTimes: 0,
       cron: "* * * * *",
 
@@ -2944,6 +2967,15 @@ export default {
       this.resetSkillEventWeightList = data.resetSkillEventWeightList;
       this.showUraConfigModal = false;
     },
+    openSparkRerollModal: function () {
+      this.showSparkRerollModal = true;
+    },
+    handleSparkRerollConfirm: function (data) {
+      this.sparkRerollTargets = [...data.targets];
+      this.sparkRerollMinStars = data.minStars;
+      this.sparkRerollUseCarats = Boolean(data.useCarats);
+      this.showSparkRerollModal = false;
+    },
     handleAoharuConfigConfirm: function (data) {
       this.preliminaryRoundSelections = [...data.preliminaryRoundSelections];
       this.aoharuTeamNameSelection = data.aoharuTeamNameSelection;
@@ -2994,6 +3026,12 @@ export default {
           "loop_count": this.selectedExecuteMode === 6 ? this.loopCount : 0,
           // only meaningful for a single-run loop; force off otherwise
           "stop_at_spark_reroll": (this.selectedExecuteMode === 6 && this.loopCount === 1 && !this.doTeamTrials) ? this.stopAtSparkReroll : false,
+          // automated spark reroll: only in loop mode without team trials, and
+          // only when at least one desired spark is checked
+          "spark_reroll_enabled": (this.selectedExecuteMode === 6 && !this.doTeamTrials && this.sparkRerollTargets.length > 0) ? this.sparkRerollEnabled : false,
+          "spark_reroll_targets": this.sparkRerollTargets,
+          "spark_reroll_min_stars": this.sparkRerollMinStars,
+          "spark_reroll_use_carats": this.sparkRerollUseCarats,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,

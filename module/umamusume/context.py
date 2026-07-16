@@ -28,6 +28,13 @@ class CultivateContextDetail:
     learn_skill_before_race: bool
     allow_recover_tp: bool
     parse_factor_done: bool
+    # spark reroll automation state machine:
+    # '' -> not evaluated yet; 'keep' -> roll 1 satisfied, confirm through;
+    # 'reroll_clicked' -> reroll requested, waiting for the comparison screen;
+    # 'done' -> a set was chosen (or automation gave up), confirm through
+    spark_reroll_phase: str
+    spark_reroll_clicks: int
+    spark_reroll_result: dict
     extra_weight: list
     spirit_explosion: list
     manual_purchase_completed: bool
@@ -57,6 +64,11 @@ class CultivateContextDetail:
         self.clock_used = 0
         self.allow_recover_tp = False
         self.parse_factor_done = False
+        self.spark_reroll_phase = ''
+        self.spark_reroll_clicks = 0
+        self.spark_reroll_abort_tries = 0
+        self.spark_reroll_recover_tries = 0
+        self.spark_reroll_result = {}
         self.extra_weight = []
         self.spirit_explosion = [0.16, 0.16, 0.16, 0.06, 0.11]
         self.manual_purchase_completed = False

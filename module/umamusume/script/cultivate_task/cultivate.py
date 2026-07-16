@@ -2081,7 +2081,23 @@ def script_cultivate_learn_skill(ctx: UmamusumeContext):
 
 def script_not_found_ui(ctx: UmamusumeContext):
     """Enhanced NOT_FOUND_UI handler with goal screen fallback detection"""
-    
+
+    # Spark reroll in progress: the Spark Selection screen and the reroll
+    # animation have no UI templates, so intercept before the generic
+    # heuristics below can misfire and click something on them.
+    spark_phase = getattr(ctx.cultivate_detail, 'spark_reroll_phase', '') \
+        if getattr(ctx, 'cultivate_detail', None) is not None else ''
+    if spark_phase in ('reroll_clicked', 'selected') and ctx.current_screen is not None:
+        if is_spark_selection_screen(ctx.current_screen):
+            handle_spark_selection(ctx)
+            return
+        if spark_phase == 'reroll_clicked':
+            # most likely the reroll animation; tap a neutral spot to skip it
+            log.debug("🎲 Waiting for the Spark Selection screen")
+            ctx.ctrl.click_by_point(ESCAPE)
+            time.sleep(1)
+            return
+
     # Debug: Log current screen info
     if ctx.current_screen is not None:
         log.debug(f"🔍 NOT_FOUND_UI - Screen shape: {ctx.current_screen.shape}")
@@ -2231,11 +2247,42 @@ def script_cultivate_level_result(ctx: UmamusumeContext):
 
 
 def script_factor_receive(ctx: UmamusumeContext):
+    # The Spark Selection screen (after a reroll) can also match this UI's
+    # "Sparks" label; never blind-click the confirm point there.
+    if getattr(ctx.cultivate_detail, 'spark_reroll_phase', '') in ('reroll_clicked', 'selected') \
+            and ctx.current_screen is not None \
+            and is_spark_selection_screen(ctx.current_screen):
+        handle_spark_selection(ctx)
+        return
     if ctx.cultivate_detail.parse_factor_done:
         ctx.ctrl.click_by_point(CULTIVATE_FACTOR_RECEIVE_CONFIRM)
     else:
         time.sleep(2)
         parse_factor(ctx)
+
+
+def _spark_reroll_active(ctx: UmamusumeContext) -> bool:
+    detail = ctx.task.detail
+    return bool(getattr(detail, 'spark_reroll_enabled', False)) \
+        and bool(getattr(detail, 'spark_reroll_targets', []))
+
+
+def _save_spark_debug(ctx: UmamusumeContext, tag: str, img=None):
+    """Keep captures of every spark reroll step so misdetections on the new
+    screens can be diagnosed (and templates recalibrated) from a real run."""
+    try:
+        import os
+        os.makedirs('screenshot/spark_reroll', exist_ok=True)
+        if img is None:
+            img = ctx.ctrl.get_screen()
+        cv2.imwrite(f'screenshot/spark_reroll/{time.strftime("%Y%m%d_%H%M%S")}_{tag}.png', img)
+    except Exception as e:
+        log.debug(f"spark debug capture failed: {e}")
+
+
+def _spark_rows_text(rows) -> str:
+    return ", ".join(f"{r['color'] or '?'}:{r['name'] or '?'}({r['canonical'] or '-'}) {r['stars']}*"
+                     for r in rows) or "(none)"
 
 
 def script_factor_reroll(ctx: UmamusumeContext):
@@ -2248,13 +2295,197 @@ def script_factor_reroll(ctx: UmamusumeContext):
     # Stopping only makes sense for a single-run loop session: the task ends
     # with the game left on this screen so the user can reroll manually.
     detail = ctx.task.detail
+    d = ctx.cultivate_detail
     single_run = (ctx.task.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_LOOP
                   and (getattr(detail, 'loop_count', 0) or 0) == 1)
     if getattr(detail, 'stop_at_spark_reroll', False) and single_run:
         log.info("🎲 Spark reroll screen reached - stopping so the user can reroll manually")
         ctx.task.end_task(TaskStatus.TASK_STATUS_SUCCESS, UEndTaskReason.STOP_AT_SPARK_REROLL)
         return
+
+    # Couldn't afford the reroll (info.py declined the TP-restore prompt): we
+    # are back on the spark screen, so keep the original roll and finish.
+    if getattr(d, 'spark_reroll_phase', '') == 'abort':
+        log.info("🎲 Reroll unaffordable - keeping the original sparks")
+        d.spark_reroll_phase = 'done'
+        d.spark_reroll_result = {'rerolled': False, 'chosen': 'original',
+                                 'reason': 'not enough TP to reroll'}
+        ctx.task.detail.cultivate_result['spark_reroll'] = d.spark_reroll_result
+        ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+        return
+
+    if _spark_reroll_active(ctx) and getattr(d, 'spark_reroll_phase', '') == '':
+        time.sleep(1)
+        rows = parse_spark_rows(ctx)
+        log.info(f"🎲 Spark roll 1: {_spark_rows_text(rows)}")
+        targets = detail.spark_reroll_targets
+        min_stars = getattr(detail, 'spark_reroll_min_stars', 3)
+        hit = spark_rows_find_match(rows, targets, min_stars)
+        if hit:
+            log.info(f"🎲 Desired spark '{hit}' present at {min_stars}+ stars - keeping this roll")
+            d.spark_reroll_phase = 'keep'
+            d.spark_reroll_result = {'rerolled': False, 'chosen': 'original',
+                                     'reason': f"roll 1 has {hit}"}
+            ctx.task.detail.cultivate_result['spark_reroll'] = d.spark_reroll_result
+            ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+            return
+        if not rows:
+            log.warning("🎲 Could not parse any spark rows - confirming without reroll")
+            d.spark_reroll_phase = 'done'
+            ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+            return
+        screen = ctx.ctrl.get_screen(to_gray=True)
+        btn = image_match(screen, UI_FACTOR_REROLL)
+        if btn.find_match:
+            log.info("🎲 No desired spark in roll 1 - rerolling (30 TP)")
+            _save_spark_debug(ctx, "roll1")
+            d.spark_reroll_phase = 'reroll_clicked'
+            d.spark_reroll_clicks = 0
+            ctx.ctrl.click(btn.center_point[0], btn.center_point[1], "Reroll Sparks")
+        else:
+            log.warning("🎲 Reroll button not found - confirming without reroll")
+            d.spark_reroll_phase = 'done'
+            ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+        return
+
+    if getattr(d, 'spark_reroll_phase', '') == 'reroll_clicked':
+        # We are back on the reroll screen although the reroll was requested:
+        # the confirmation dialog was probably dismissed. Retry a few times.
+        d.spark_reroll_clicks += 1
+        if d.spark_reroll_clicks > 5:
+            log.warning("🎲 Reroll did not go through (TP too low?) - confirming without reroll")
+            d.spark_reroll_phase = 'done'
+            ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+            return
+        screen = ctx.ctrl.get_screen(to_gray=True)
+        btn = image_match(screen, UI_FACTOR_REROLL)
+        if btn.find_match:
+            ctx.ctrl.click(btn.center_point[0], btn.center_point[1], "Reroll Sparks (retry)")
+        else:
+            time.sleep(1)
+        return
+
     ctx.ctrl.click_by_point(CULTIVATE_FACTOR_REROLL_SKIP)
+
+
+def _spark_selection_show_view(ctx: UmamusumeContext, want: str) -> bool:
+    """Switch the Spark Selection carousel to the wanted view ('rerolled' or
+    'original') using the arrows. Returns True when the subtitle confirms it."""
+    for attempt in range(4):
+        img = ctx.ctrl.get_screen()
+        view = parse_spark_selection_title(img)
+        if view == want:
+            return True
+        ctx.ctrl.click(SPARK_SEL_RIGHT_ARROW[0], SPARK_SEL_RIGHT_ARROW[1],
+                       "Spark Selection - switch set")
+        time.sleep(1.5)
+    return False
+
+
+def _spark_selection_confirm(ctx: UmamusumeContext) -> bool:
+    """Click the centered green Confirm on the Spark Selection screen."""
+    x1, y1, x2, y2 = SPARK_SEL_CONFIRM_AREA
+    btn = find_green_button(ctx.ctrl.get_screen(), x1, y1, x2, y2)
+    if btn is None:
+        return False
+    ctx.ctrl.click(btn[0], btn[1], "Spark Selection - Confirm")
+    return True
+
+
+def handle_spark_selection(ctx: UmamusumeContext):
+    """Spark Selection screen (after Reroll Sparks): a carousel showing one
+    set at a time; Confirm keeps the displayed set. Keeps the rerolled set
+    when it satisfies the desired-spark check; otherwise keeps the set with
+    the most white sparks."""
+    detail = ctx.task.detail
+    d = ctx.cultivate_detail
+
+    if getattr(d, 'spark_reroll_phase', '') == 'reroll_clicked':
+        time.sleep(1.5)
+        img = ctx.ctrl.get_screen()
+        _save_spark_debug(ctx, "selection", img)
+        targets = detail.spark_reroll_targets
+        min_stars = getattr(detail, 'spark_reroll_min_stars', 3)
+
+        if not _spark_selection_show_view(ctx, 'rerolled'):
+            log.warning("🎲 Could not switch to the rerolled set - keeping what is shown")
+            d.spark_reroll_phase = 'selected'
+            d.spark_reroll_clicks = 0
+            _spark_selection_confirm(ctx)
+            return
+
+        rerolled_rows = parse_spark_rows(ctx)
+        log.info(f"🎲 Rerolled sparks: {_spark_rows_text(rerolled_rows)}")
+        hit = spark_rows_find_match(rerolled_rows, targets, min_stars)
+        if hit:
+            choose_rerolled = True
+            reason = f"rerolled set has {hit}"
+            original_rows = []
+        else:
+            # Neither set qualifies. Prefer the set with more white sparks. A
+            # set always leads with the same 3 non-white rows (blue+pink+green),
+            # so more sparks == more whites, and the scrollbar thumb reads that
+            # directly: a shorter thumb = more rows below the fold. This beats
+            # scrolling + re-OCRing each list (the in-game list flings rather
+            # than scrolls a fixed step).
+            ratio_rerolled = spark_scrollbar_ratio(ctx.ctrl.get_screen())
+            if not _spark_selection_show_view(ctx, 'original'):
+                log.warning("🎲 Could not switch to the original set - keeping the rerolled one")
+                _spark_selection_show_view(ctx, 'rerolled')
+                choose_rerolled = True
+                reason = "carousel switch failed"
+                original_rows = []
+            else:
+                original_rows = parse_spark_rows(ctx)
+                log.info(f"🎲 Original sparks: {_spark_rows_text(original_rows)}")
+                ratio_original = spark_scrollbar_ratio(ctx.ctrl.get_screen())
+                log.info(f"🎲 Neither set has a desired spark - scrollbar thumb: "
+                         f"rerolled {ratio_rerolled:.2f} vs original {ratio_original:.2f} "
+                         f"(smaller = more sparks)")
+                if abs(ratio_rerolled - ratio_original) > 0.05:
+                    choose_rerolled = ratio_rerolled < ratio_original
+                    reason = (f"more white sparks by scrollbar "
+                              f"(thumb {ratio_rerolled:.2f} vs {ratio_original:.2f})")
+                else:
+                    # near-identical list length: fall back to total visible stars
+                    stars_original = sum(r['stars'] for r in original_rows)
+                    stars_rerolled = sum(r['stars'] for r in rerolled_rows)
+                    choose_rerolled = stars_rerolled > stars_original
+                    reason = (f"list length tied (thumb {ratio_rerolled:.2f}); "
+                              f"total stars {stars_rerolled} vs {stars_original}")
+
+        chosen = 'rerolled' if choose_rerolled else 'original'
+        log.info(f"🎲 Choosing the {chosen} spark set ({reason})")
+        d.spark_reroll_result = {
+            'rerolled': True, 'chosen': chosen, 'reason': reason,
+            'original': [[r['name'], r['stars']] for r in original_rows],
+            'new': [[r['name'], r['stars']] for r in rerolled_rows],
+        }
+        ctx.task.detail.cultivate_result['spark_reroll'] = d.spark_reroll_result
+        if choose_rerolled:
+            # keep the task report in sync with the kept set
+            ctx.task.detail.cultivate_result['factor_list'] = \
+                [[r['name'], r['stars']] for r in rerolled_rows if r['name']]
+
+        if not _spark_selection_show_view(ctx, chosen):
+            log.warning(f"🎲 Could not navigate to the {chosen} set - confirming current view")
+        d.spark_reroll_phase = 'selected'
+        d.spark_reroll_clicks = 0
+        _save_spark_debug(ctx, f"confirming_{chosen}")
+        if not _spark_selection_confirm(ctx):
+            log.warning("🎲 Confirm button not found on the Spark Selection screen")
+        return
+
+    if getattr(d, 'spark_reroll_phase', '') == 'selected':
+        # still on the selection screen: the confirm click missed
+        d.spark_reroll_clicks += 1
+        if d.spark_reroll_clicks > 4:
+            log.error("🎲 Could not leave the Spark Selection screen - see "
+                      "screenshot/spark_reroll/ captures")
+            d.spark_reroll_phase = 'failed'
+            return
+        if not _spark_selection_confirm(ctx):
+            ctx.ctrl.click(360, 1178, "Spark Selection - Confirm (fallback)")
 
 
 def script_historical_rating_update(ctx: UmamusumeContext):

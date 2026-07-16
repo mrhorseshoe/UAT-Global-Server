@@ -48,6 +48,13 @@ class TaskDetail:
     loops_done: int
     # stop at the end-of-run spark reroll screen (single-run loop sessions only)
     stop_at_spark_reroll: bool
+    # automated spark reroll: reroll (30 TP) unless a desired blue/pink spark
+    # is present at spark_reroll_min_stars or above
+    spark_reroll_enabled: bool
+    spark_reroll_targets: list[str]
+    spark_reroll_min_stars: int
+    # spend carats to restore TP when a reroll can't be afforded
+    spark_reroll_use_carats: bool
 
 
 class EndTaskReason(Enum):
@@ -162,6 +169,14 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.loop_count = int(attachment_data.get('loop_count', 0) or 0)
     td.loops_done = int(attachment_data.get('loops_done', 0) or 0)
     td.stop_at_spark_reroll = bool(attachment_data.get('stop_at_spark_reroll', False))
+    td.spark_reroll_enabled = bool(attachment_data.get('spark_reroll_enabled', False))
+    targets = attachment_data.get('spark_reroll_targets', [])
+    td.spark_reroll_targets = [str(t) for t in targets] if isinstance(targets, list) else []
+    try:
+        td.spark_reroll_min_stars = min(3, max(1, int(attachment_data.get('spark_reroll_min_stars', 3))))
+    except Exception:
+        td.spark_reroll_min_stars = 3
+    td.spark_reroll_use_carats = bool(attachment_data.get('spark_reroll_use_carats', False))
 
     ut.detail = td
     return ut

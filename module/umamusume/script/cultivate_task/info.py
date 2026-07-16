@@ -94,6 +94,74 @@ TITLE = [
 ]
 
 
+def _spark_reroll_recover_tp(ctx, title_pos, body_text) -> bool:
+    """Drive the TP-restore flow during a spark reroll when the user allows
+    carats. Mirrors the career-start Recover TP handling (prefer a TP item,
+    otherwise carats). Returns True if it acted on this screen, False if it
+    gave up (caller then declines and keeps the original roll).
+
+    One screen is handled per call; script_info runs again on the next frame,
+    so this steps through: Restore TP? prompt -> item/carat select -> confirm
+    -> close, after which script_factor_reroll re-clicks Reroll Sparks."""
+    from module.umamusume.script.cultivate_task.parse import find_green_button
+
+    tries = getattr(ctx.cultivate_detail, 'spark_reroll_recover_tries', 0) + 1
+    ctx.cultivate_detail.spark_reroll_recover_tries = tries
+    if tries > 10:
+        log.warning("🎲 TP restore is not completing - giving up on the reroll")
+        return False
+
+    screen = ctx.ctrl.get_screen(to_gray=True)
+    # The Recover TP selection screen (carats + TP item). Same screen and
+    # templates as the career-start recovery.
+    if image_match(screen, REF_RECOVER_TP_1).find_match:
+        # Never spend a chocolate TP item (sentimental value): use a
+        # non-chocolate TP item if one is offered, otherwise carats. The item
+        # name shows in the row by the "Use" button and also in the dialog
+        # body OCR - treat either mentioning "choc" as chocolate.
+        item_row = (ocr_line(screen[293:352, 80:545]) or '').lower()
+        is_chocolate = 'choc' in item_row or 'choc' in body_text
+        if image_match(screen, REF_TP_RECOVER_DRINK).find_match and not is_chocolate:
+            log.info(f"🎲 Restoring TP with a non-chocolate TP item for the "
+                     f"reroll (item row: '{item_row.strip()[:40]}')")
+            ctx.ctrl.click_by_point(USE_TP_DRINK)
+        else:
+            why = "chocolate item skipped" if is_chocolate else "no TP item"
+            log.info(f"🎲 Restoring TP with carats for the reroll ({why})")
+            ctx.ctrl.click_by_point(USE_CARROT_RECOVER_TP)
+        time.sleep(1)
+        return True
+    if image_match(screen, REF_RECOVER_TP_2).find_match:
+        ctx.ctrl.click_by_point(USE_TP_DRINK_CONFIRM)
+        time.sleep(1)
+        return True
+    if image_match(screen, REF_RECOVER_TP_2_CARROT).find_match:
+        ctx.ctrl.click_by_point(USE_CARROT_RECOVER_TP_ADD)
+        time.sleep(2)
+        ctx.ctrl.click_by_point(USE_CARROT_RECOVER_CONFIRM)
+        time.sleep(1)
+        return True
+    if image_match(screen, REF_RECOVER_TP_3).find_match \
+            or image_match(screen, REF_RECOVER_TP_3_CARROT).find_match:
+        log.info("🎲 TP restored - returning to the spark screen to reroll")
+        ctx.ctrl.click_by_point(USE_TP_DRINK_RESULT_CLOSE)
+        time.sleep(1)
+        return True
+
+    # Otherwise this is the compact "You need N more TP. Restore TP?" prompt:
+    # click its green Restore button to open the recovery screen.
+    if 'restore tp' in body_text or 'more tp' in body_text:
+        ok = find_green_button(ctx.current_screen, 70, title_pos[1][1], 660, 1270)
+        if ok:
+            log.info("🎲 Accepting the TP restore prompt (carats allowed)")
+            ctx.ctrl.click(ok[0], ok[1], "Restore TP for reroll")
+        else:
+            ctx.ctrl.click_by_point(TO_RECOVER_TP)
+        time.sleep(1)
+        return True
+    return False
+
+
 def script_info(ctx: UmamusumeContext):
     try:
         mode_name = getattr(ctx.task.task_execute_mode, "name", "")
@@ -109,6 +177,69 @@ def script_info(ctx: UmamusumeContext):
         title_img = img[pos[0][1] - 5:pos[1][1] + 5, pos[0][0] + 150: pos[1][0] + 405]
         title_text = ocr_line(title_img)
         log.debug(title_text)
+
+        # Spark reroll in progress: dialogs here are either the 30 TP reroll
+        # confirmation or the receive confirmation after picking a set. Handle
+        # them by their body text before the generic title dispatch, which
+        # would otherwise click points behind the dialog.
+        spark_phase = getattr(ctx.cultivate_detail, 'spark_reroll_phase', '') \
+            if getattr(ctx, 'cultivate_detail', None) is not None else ''
+        if spark_phase in ('reroll_clicked', 'selected', 'abort'):
+            from module.umamusume.script.cultivate_task.parse import find_green_button
+            body_img = img[pos[1][1] + 10:pos[1][1] + 260, 70:650]
+            body_text = (ocr_line(body_img) or '').lower()
+            log.info(f"🎲 Dialog during spark reroll ('{title_text}'): '{body_text[:80]}'")
+            # Can't-afford signals. The reroll costs 30 TP; when short, the game
+            # first shows "You need N more TP to reroll Sparks. Restore TP?"
+            # (title 'Confirm') and, if confirmed, the standard Recover TP screen
+            # (carats + any TP item).
+            cant_afford = any(k in body_text for k in (
+                'more tp', 'restore tp', 'recover', 'recovery', 'shop',
+                'insufficient', 'not enough', 'carats'))
+            if cant_afford and spark_phase == 'reroll_clicked' \
+                    and getattr(ctx.task.detail, 'spark_reroll_use_carats', False):
+                # The user opted to spend carats. Drive the same TP-restore flow
+                # the career-start path uses (TP item preferred, else carats),
+                # then let script_factor_reroll re-click Reroll Sparks.
+                if _spark_reroll_recover_tp(ctx, pos, body_text):
+                    return
+                # recovery could not proceed - fall through to declining below
+            if cant_afford:
+                # bail out fast; don't ping-pong on TP dialogs (napping user hit
+                # exactly this - a career that ended with < 30 TP)
+                tries = getattr(ctx.cultivate_detail, 'spark_reroll_abort_tries', 0) + 1
+                ctx.cultivate_detail.spark_reroll_abort_tries = tries
+                ctx.cultivate_detail.spark_reroll_clicks = 99
+                ctx.cultivate_detail.spark_reroll_phase = 'abort'
+                log.warning(f"🎲 Not enough TP to reroll (attempt {tries}) - "
+                            f"declining and keeping the original sparks")
+                # the compact "Restore TP?" confirm mirrors the reroll-cost
+                # dialog: Cancel is the white button left of the green one
+                ok = find_green_button(ctx.current_screen, 70, pos[1][1], 660, 1270)
+                if tries <= 2 and ok:
+                    ctx.ctrl.click(720 - ok[0], ok[1], "Decline TP restore (keep roll 1)")
+                else:
+                    # deeper screen (e.g. the Recover TP shop) or no button
+                    # found: back out generically
+                    ctx.ctrl.click_by_point(ESCAPE)
+                time.sleep(1)
+                return
+            confirm_this = spark_phase == 'reroll_clicked' or \
+                any(k in body_text for k in ('spark', 'factor', 'receive', 'select', 'keep'))
+            if confirm_this:
+                # dialogs in this flow range from compact (Confirm Reroll) to
+                # nearly full screen (Keep this set of Sparks?), so search the
+                # whole area below the title bar for the green button
+                ok = find_green_button(ctx.current_screen, 70, pos[1][1], 660, 1270)
+                if ok:
+                    ctx.ctrl.click(ok[0], ok[1], "Spark reroll dialog confirm")
+                    if spark_phase == 'selected':
+                        # set received; stop intercepting later dialogs
+                        ctx.cultivate_detail.spark_reroll_phase = 'done'
+                    time.sleep(1)
+                    return
+            # not our dialog (or no green button found); fall through to the
+            # normal title handling below
         
         # Debug: Log the original OCR text and similarity matching
         original_text = title_text
