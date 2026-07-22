@@ -1336,6 +1336,20 @@ def script_cultivate_event(ctx: UmamusumeContext):
     
     try:
         if isinstance(event_name, str) and event_name.strip().lower() == "tutorial":
+            # Unity Cup tutorial screens use colour-coded buttons that the
+            # dialogue templates only partially match, so navigate by the
+            # question text instead of relying on detected selectors.
+            bubble_text = ocr_line(img[940:1010, 30:690], lang="en") or ""
+            bubble_text = bubble_text.lower()
+            if "ask about" in bubble_text:
+                # "What should I ask about?" -> "That's all, thank you."
+                ctx.ctrl.click(360, 893, "tutorial: that's all, thank you")
+                ctx.cultivate_detail.event_cooldown_until = time.time() + 2.5
+                return
+            if "are you sure" in bubble_text:
+                ctx.ctrl.click(360, 762, "tutorial: confirm exit")
+                ctx.cultivate_detail.event_cooldown_until = time.time() + 2.5
+                return
             if isinstance(selectors, list) and len(selectors) == 5:
                 target_pt = selectors[4]
                 ctx.ctrl.click(int(target_pt[0]), int(target_pt[1]), "tutorial choice 5 override")
@@ -1357,6 +1371,21 @@ def script_cultivate_event(ctx: UmamusumeContext):
         return
     if choice_index > 5:
         choice_index = 2
+    if isinstance(selectors, list) and 0 < len(selectors) < choice_index:
+        # Fewer buttons detected than the chosen option, likely because the
+        # dialog was still animating in. Re-parse before clamping, which would
+        # otherwise press the wrong button (e.g. entering the Unity Cup tutorial
+        # by hitting choice 1 when the database asked for choice 2).
+        for _ in range(3):
+            time.sleep(0.5)
+            try:
+                img_retry = ctx.ctrl.get_screen()
+                _, selectors_retry = parse_cultivate_event(ctx, img_retry)
+            except Exception:
+                continue
+            if isinstance(selectors_retry, list) and len(selectors_retry) >= choice_index:
+                selectors = selectors_retry
+                break
     if isinstance(selectors, list) and len(selectors) > 0:
         idx = int(choice_index)
         if idx < 1:
