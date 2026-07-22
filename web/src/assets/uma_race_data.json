@@ -496,6 +496,15 @@
       "venue": "Hanshin"
     },
     {
+      "id": 2388,
+      "name": "Zen-Nippon Junior Yushun",
+      "date": "Junior Year Late Dec",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Kawasaki"
+    },
+    {
       "id": 2058,
       "name": "Fairy Stakes",
       "date": "Classic Year Early Jan",
@@ -1450,6 +1459,15 @@
       "venue": "Tokyo"
     },
     {
+      "id": 2389,
+      "name": "Nambu Hai",
+      "date": "Classic Year Early Oct",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Morioka"
+    },
+    {
       "id": 2164,
       "name": "October Stakes",
       "date": "Classic Year Early Oct",
@@ -2017,6 +2035,15 @@
       "venue": "Kyoto"
     },
     {
+      "id": 2391,
+      "name": "Kawasaki Kinen",
+      "date": "Senior Year Early Feb",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Medium",
+      "venue": "Kawasaki"
+    },
+    {
       "id": 2227,
       "name": "Kyoto Kinen",
       "date": "Senior Year Early Feb",
@@ -2384,6 +2411,15 @@
       "terrain": "Dirt",
       "distance": "Medium",
       "venue": "Tokyo"
+    },
+    {
+      "id": 2392,
+      "name": "Kashiwa Kinen",
+      "date": "Senior Year Early May",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Funabashi"
     },
     {
       "id": 2268,
@@ -3007,6 +3043,15 @@
       "venue": "Tokyo"
     },
     {
+      "id": 2390,
+      "name": "Nambu Hai",
+      "date": "Senior Year Early Oct",
+      "type": "G1",
+      "terrain": "Dirt",
+      "distance": "Mile",
+      "venue": "Morioka"
+    },
+    {
       "id": 2337,
       "name": "October Stakes",
       "date": "Senior Year Early Oct",
@@ -3401,51 +3446,6 @@
       "terrain": "Dirt",
       "distance": "Medium",
       "venue": "Ooi"
-    },
-    {
-      "id": 2388,
-      "name": "Zen-Nippon Junior Yushun",
-      "date": "Junior Year Late Dec",
-      "type": "G1",
-      "terrain": "Dirt",
-      "distance": "Mile",
-      "venue": "Kawasaki"
-    },
-    {
-      "id": 2389,
-      "name": "Nambu Hai",
-      "date": "Classic Year Early Oct",
-      "type": "G1",
-      "terrain": "Dirt",
-      "distance": "Mile",
-      "venue": "Morioka"
-    },
-    {
-      "id": 2390,
-      "name": "Nambu Hai",
-      "date": "Senior Year Early Oct",
-      "type": "G1",
-      "terrain": "Dirt",
-      "distance": "Mile",
-      "venue": "Morioka"
-    },
-    {
-      "id": 2391,
-      "name": "Kawasaki Kinen",
-      "date": "Senior Year Early Feb",
-      "type": "G1",
-      "terrain": "Dirt",
-      "distance": "Medium",
-      "venue": "Kawasaki"
-    },
-    {
-      "id": 2392,
-      "name": "Kashiwa Kinen",
-      "date": "Senior Year Early May",
-      "type": "G1",
-      "terrain": "Dirt",
-      "distance": "Mile",
-      "venue": "Funabashi"
     }
   ]
 }

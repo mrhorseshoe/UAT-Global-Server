@@ -55,6 +55,7 @@
 24,2055,Junior Year Late Dec,Christmas Rose Stakes,,OP,Nakayama,Turf,1200,Right,,Sprint
 24,2056,Junior Year Late Dec,Hopeful Stakes,,G1,Nakayama,Turf,2000,Right,,Medium
 24,2057,Junior Year Late Dec,Senryo Sho,,PRE-OP,Hanshin,Turf,1600,Right,,Mile
+24,2388,Junior Year Late Dec,Zen-Nippon Junior Yushun,,G1,Kawasaki,Dirt,1600,Left,,Mile
 25,2058,Classic Year Early Jan,Fairy Stakes,,G3,Nakayama,Turf,1600,Right,,Mile
 25,2059,Classic Year Early Jan,Junior Cup,,OP,Nakayama,Turf,1600,Right,,Mile
 25,2060,Classic Year Early Jan,Keisei Hai,,G3,Nakayama,Turf,2000,Right,,Medium
@@ -161,6 +162,7 @@
 43,2161,Classic Year Early Oct,Green Channel Cup,,OP,Tokyo,Dirt,1400,Left,,Sprint
 43,2162,Classic Year Early Oct,Kyoto Daishoten,,G2,Kyoto,Turf,2400,Right,,Medium
 43,2163,Classic Year Early Oct,Mainichi Okan,,G2,Tokyo,Turf,1800,Left,,Mile
+43,2389,Classic Year Early Oct,Nambu Hai,,G1,Morioka,Dirt,1600,Left,,Mile
 43,2164,Classic Year Early Oct,October Stakes,,OP,Tokyo,Turf,2000,Left,,Medium
 43,2165,Classic Year Early Oct,Opal Stakes,,OP,Kyoto,Turf,1200,Right,,Sprint
 43,2166,Classic Year Early Oct,Shinetsu Stakes,,OP,Niigata,Turf,1400,Left,,Sprint
@@ -224,6 +226,7 @@
 50,2224,Senior Year Late Jan,Subaru Stakes,,OP,Kyoto,Dirt,1400,Right,,Sprint
 50,2225,Senior Year Late Jan,Tokai Stakes,,G2,Chukyo,Dirt,1800,Left,,Mile
 51,2226,Senior Year Early Feb,Aldebaran Stakes,,OP,Kyoto,Dirt,1900,Right,,Medium
+51,2391,Senior Year Early Feb,Kawasaki Kinen,,G1,Kawasaki,Dirt,2100,Left,,Medium
 51,2227,Senior Year Early Feb,Kyoto Kinen,,G2,Kyoto,Turf,2200,Right,,Medium
 51,2228,Senior Year Early Feb,Rakuyo Stakes,,OP,Kyoto,Turf,1600,Right,,Mile
 51,2229,Senior Year Early Feb,Tokyo Shimbun Hai,,G3,Tokyo,Turf,1600,Left,,Mile
@@ -265,6 +268,7 @@
 56,2265,Senior Year Late Apr,Tenno Sho (Spring),,G1,Kyoto,Turf,3200,Right,,Long
 56,2266,Senior Year Late Apr,Tennozan Stakes,,OP,Kyoto,Dirt,1200,Right,,Sprint
 57,2267,Senior Year Early May,Brilliant Stakes,,OP,Tokyo,Dirt,2100,Left,,Medium
+57,2392,Senior Year Early May,Kashiwa Kinen,,G1,Funabashi,Dirt,1600,Left,,Mile
 57,2268,Senior Year Early May,Keio Hai Spring Cup,,G2,Tokyo,Turf,1400,Left,,Sprint
 57,2269,Senior Year Early May,Kurama Stakes,,OP,Kyoto,Turf,1200,Right,,Sprint
 57,2270,Senior Year Early May,Metropolitan Stakes,,OP,Tokyo,Turf,2400,Left,,Medium
@@ -334,6 +338,7 @@
 67,2334,Senior Year Early Oct,Green Channel Cup,,OP,Tokyo,Dirt,1400,Left,,Sprint
 67,2335,Senior Year Early Oct,Kyoto Daishoten,,G2,Kyoto,Turf,2400,Right,,Medium
 67,2336,Senior Year Early Oct,Mainichi Okan,,G2,Tokyo,Turf,1800,Left,,Mile
+67,2390,Senior Year Early Oct,Nambu Hai,,G1,Morioka,Dirt,1600,Left,,Mile
 67,2337,Senior Year Early Oct,October Stakes,,OP,Tokyo,Turf,2000,Left,,Medium
 67,2338,Senior Year Early Oct,Opal Stakes,,OP,Kyoto,Turf,1200,Right,,Sprint
 67,2339,Senior Year Early Oct,Shinetsu Stakes,,OP,Niigata,Turf,1400,Left,,Sprint
@@ -385,8 +390,3 @@
 84,2385,Finals ???,URA Finals Final (Aoharu),,EX,,,,,,
 84,2386,Finals ???,URA Finals Final (Grand Live),,EX,,,,,,
 84,2387,Finals ???,URA Finals Final (URA),,EX,,,,,,
-24,2388,Junior Year Late Dec,Zen-Nippon Junior Yushun,,G1,Kawasaki,Dirt,1600,Left,,Mile
-43,2389,Classic Year Early Oct,Nambu Hai,,G1,Morioka,Dirt,1600,Left,,Mile
-67,2390,Senior Year Early Oct,Nambu Hai,,G1,Morioka,Dirt,1600,Left,,Mile
-51,2391,Senior Year Early Feb,Kawasaki Kinen,,G1,Kawasaki,Dirt,2100,Left,,Medium
-57,2392,Senior Year Early May,Kashiwa Kinen,,G1,Funabashi,Dirt,1600,Left,,Mile
