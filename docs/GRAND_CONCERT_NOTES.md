@@ -20,7 +20,7 @@ flagged below.
 | `docs/GRAND_CONCERT_NOTES.md` | this file |
 | `resource/umamusume/data/grand_concert_lessons.json` | song catalogue + lesson rules |
 | `resource/umamusume/scenario/scenario_grand_concert.png` | scenario-select template (done, validated) |
-| `screenshot/grand_concert/` | ~62 reference captures, 27 MB, **untracked** — parser fixtures |
+| `docs/captures/grand_concert/` | 23 curated reference captures + an index of what each one backs |
 
 **Phased plan:** Phase 1 = plumbing + a career that completes buying nothing.
 Phase 2 = lesson economy. Phase 3 = training-score integration. Phase 4 =
