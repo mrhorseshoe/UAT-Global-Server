@@ -12,24 +12,42 @@ flagged below.
 
 ## START HERE
 
-**Status:** Phase 0 (capture/recon) largely complete. No bot code written yet.
+**Status: Phase 0 (capture/recon) COMPLETE.** A full career was played
+manually and captured. **Phase 1 has not been started — no scenario code
+exists yet.** Read this whole file before writing any; it is short and every
+number in it was measured, not assumed.
 
-**Artifacts:**
+**Branch:** all work is on `grand-concert` (6 commits, pushed to the
+`mrhorseshoe` fork). `main` is untouched, so URA/Unity Cup runs are unaffected.
+
+**Artifacts already committed:**
 | Path | What |
 |------|------|
 | `docs/GRAND_CONCERT_NOTES.md` | this file |
-| `resource/umamusume/data/grand_concert_lessons.json` | song catalogue + lesson rules |
-| `resource/umamusume/scenario/scenario_grand_concert.png` | scenario-select template (done, validated) |
-| `docs/captures/grand_concert/` | 23 curated reference captures + an index of what each one backs |
+| `resource/umamusume/data/grand_concert_lessons.json` | all 23 songs + technique/purchase rules |
+| `resource/umamusume/scenario/scenario_grand_concert.png` | scenario-select template (validated 1.000 vs <=0.254) |
+| `resource/umamusume/ui/concert_bonuses_updated.png` | post-concert popup template (validated 1.000 vs <=0.568) |
+| `docs/captures/grand_concert/` | 23 reference captures + README naming what each backs |
+
+**Code already changed** (`event/manifest.py`): three Light Hello events
+pinned to choice 1. That is the only behaviour change so far.
 
 **Phased plan:** Phase 1 = plumbing + a career that completes buying nothing.
 Phase 2 = lesson economy. Phase 3 = training-score integration. Phase 4 =
 UI/polish. Ship Phase 1 separately so URA/Unity Cup stay usable.
 
-**Next actions:**
-1. Write the Phase 1 skeleton (checklist at the bottom of this file).
-2. Still uncaptured: a concert (1st is Junior Late Dec), post-debut main menu
-   with a normal month date, summer-camp main menu, race flow.
+**The three things that will break a naive Phase 1** (all measured, all with
+fixes recorded below):
+1. `CULTIVATE_TRIP` (355,1130) lands in a **gap** — outings never register,
+   and pal-stage detection never runs because it is reached by that click.
+2. Both career-end points are wrong; `CULTIVATE_FINISH_CONFIRM` (512,1050)
+   opens the **Lessons shop** instead of completing the career.
+3. The post-concert "Bonuses Updated!" popup matches no UI and **hard-stalls**
+   the bot into a watchdog restart loop.
+
+**Still uncaptured** (not blockers — the bot can be built and shaken down
+without them): the concert sequence itself, a post-debut main menu showing a
+normal month date, and the summer-camp main menu layout.
 
 ---
 
@@ -588,24 +606,61 @@ The mapping above was captured on a Silence Suzuka run, which is why options
 
 ## Phase 1 checklist (career completes, buys nothing)
 
+Ordered so the run gets further with each item. Nothing here needs the
+emulator except the final shakedown.
+
+**Plumbing**
 - [ ] `SCENARIO_TYPE_GRAND_CONCERT = 3` in `define.py`
-- [ ] `GrandConcertScenario(BaseScenario)` — copy Aoharu's parsing methods
-      minus spirit-burst/ESB; override `get_date_img` /
-      `get_turn_to_race_img` with the crops above
-- [ ] Wire-up: `context.py` match arm, `task.py`, a (initially empty)
-      `GrandConcertConfig` in `configs.py`, web UI dropdown option
-- [ ] Scenario template is already cut and validated (1.000 vs ≤0.254 on the
-      other three cards); `script_scenario_select`'s 6-swipe loop covers 4
-      cards unchanged
-- [ ] **Grand Concert bottom-row click points** — at minimum fix Recreation;
-      Infirmary is marginal
-- [ ] Verify the **Normal Career** tab before Start Career!
-- [ ] Concert screens: click-through handlers + any new `INFO` titles
-- [ ] Shakedown run with `bot.log.file_enabled: true`
+- [ ] `GrandConcertScenario(BaseScenario)` in `scenario/grand_concert_scenario.py`
+      — copy Aoharu's `parse_training_result` / `parse_training_support_card`
+      **minus the spirit-burst/ESB block** (verified to work unchanged), and
+      override `get_date_img` = `img[40:66, 160:380]`,
+      `get_turn_to_race_img` = `img[55:118, 15:150]`
+- [ ] Wire-up: `context.py` match arm, `task.py`, an (initially empty)
+      `GrandConcertConfig` in `scenario/configs.py`, web UI dropdown option
+      (the slot MANT vacated)
+- [ ] Scenario template and the 4-card carousel need **no work** — the
+      template is committed and validated, and `script_scenario_select`'s
+      6-swipe loop already covers 4 cards
+
+**The three known breakages**
+- [ ] **Bottom-row click points** — Recreation (279,1130) is the required fix;
+      Infirmary (115,1130) is marginal at the old coord; Races (607,1130)
+      works either way. Scenario-branch them.
+- [ ] **Career-end click points** — Skills (122,1053), Complete Career
+      (360,1053). Both current values are wrong and one opens the shop.
+- [ ] **Post-concert popup handler** — wire
+      `ui/concert_bonuses_updated.png` as a UI in `asset/ui.py` +
+      `scan_ui_list`, add it to the script dict, click **Close (202,834)**.
+      Not Confirm — that opens a second modal that stalls the same way.
+
+**Safety**
+- [ ] Verify the **Normal Career** tab is selected before Start Career!
+      (count green pixels per tab band; see the Final Confirmation section)
+- [ ] Confirm the Recreation menu dismisses — the existing code taps (5,5)
+      after pal-stage detection, which is unverified on this dialog.
+      Cancel is (360,918).
+
+**Shakedown**
+- [ ] Run with `bot.log.file_enabled: true` and read the log rather than
+      watching; the OCR failure modes here are silent wrong numbers, not
+      exceptions
 
 Deliberate non-goals for Phase 1: no lesson buying (so the INFO auto-buy
-hazard cannot fire), no PP-aware scoring. Concerts still fire with <3 songs
-(+3 stats instead of +10), so a career completes without touching the shop.
+hazard cannot fire), no PP-aware scoring, no concert-schedule logic.
+Concerts still fire with <3 songs (+3 stats instead of +10), so a career
+completes end to end without ever opening the shop.
+
+### Phase 2+ scope (do not start until Phase 1 runs clean)
+
+Phase 2 is the lesson economy. The groundwork is all in
+`grand_concert_lessons.json`; the design decisions already settled are:
+read costs and affordability live off the card every visit; identify an
+offered song by its **(cost + mastery + concert) signature, not its name**;
+use **cost-row brightness** for affordability; **2x upscale before OCR**; and
+buy greedily, since a set only rotates on purchase and passed-over lessons
+return. The one screen needing user config is "Closer Together" — a
+`GrandConcertConfig.scenario_skill_choice` (1-5) dropdown.
 
 **Do not refactor the scenario abstraction yet.** The
 `if scenario_type() == AOHARUHAI` pattern in `hook.py`/`cultivate.py` is
