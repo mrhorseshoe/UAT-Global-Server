@@ -1,221 +1,1494 @@
 {
   "_comment": [
     "Grand Concert ('Our Grand Concert') SONG catalogue.",
-    "Built during Phase 0 capture; consumed later by the Grand Concert lesson policy.",
+    "Full song list imported from https://uma.guide/guides/grand-concert and",
+    "cross-validated against live captures: 7 of 7 songs seen in game matched the",
+    "guide EXACTLY on cost and effects, so the remaining rows are trusted.",
     "",
-    "SCOPE - songs only. Techniques are deliberately NOT catalogued; see the",
-    "'techniques' section below for why, and for the rules the purchase logic",
-    "actually needs.",
+    "SCOPE - songs only. Techniques are deliberately not catalogued; see the",
+    "'techniques' section for why, and for the rules the purchase logic needs.",
     "",
-    "RUNTIME CONTRACT - this file is NOT a source of costs.",
-    "The bot must read name, cost and affordability off the shop screen on every",
-    "visit. Cost is a property of the OFFER, not the lesson: 'Watch an Up-and-",
-    "Coming Idol's Concert' appeared in set 1 costing Vo 10 and again in set 3",
-    "costing Da 10 - same lesson, same amount, different currency. Costs here are",
-    "a historical record, stored as a list of observations, never a single value.",
+    "RUNTIME CONTRACT",
+    "  Read the offered lesson's name, cost and affordability off the SHOP SCREEN",
+    "  every visit. This file supplies the strategic prior - 'priority' - which the",
+    "  screen cannot tell us, plus canonical costs for multi-turn planning.",
+    "  Song costs have proven stable per song ('Go This Way' identical across three",
+    "  appearances), so planning against 'cost' is sound; techniques are the",
+    "  opposite and must always be read live.",
     "",
-    "What this file IS for:",
-    "  1. Strategic priors - which lessons are worth buying, which the screen",
-    "     cannot tell us. That is the only part the runtime should consult.",
-    "  2. Offline fixtures for building and regression-testing the shop parser.",
-    "  3. A record of how offers vary, so wrong assumptions get caught early.",
-    "EFFECTS VARY TOO. 'Group Lesson Basics' granted 'Skill Hint Lvl +1 (Medium)'",
-    "in set 3 and 'Skill Hint Lvl +1 (Mile)' in set 4 - the qualifier changed with",
-    "the offer. Read effects off the card as well; the values here are a record of",
-    "what has been seen, not a lookup table.",
-    "",
-    "Append new entries and new cost observations as they are encountered.",
-    "Keep 'source' honest:",
-    "  observed     - read directly off the Lessons shop or its confirmation dialog",
-    "  illustration - read off a tutorial popup mockup; costs may not be real",
-    "  guide        - named by an external guide, never seen in game yet",
-    "",
-    "Currency codes match the in-game chips:",
+    "CURRENCY NAMES - the guide labels the Visual currency 'Guts' (the stat it",
+    "feeds). Costs here use the in-game chip codes:",
     "  Da Dance | Pa Passion | Vo Vocal | Vi Visual | Co Composure",
     "",
+    "EFFECT WORDING - the guide and the game word effects differently. Match on the",
+    "GAME's text when parsing a card:",
+    "  guide 'Speed Training +1'        -> game 'Training Speed Gain +1'",
+    "  guide 'Friendship Bonus +5%'     -> game 'Friendship Training Effectiveness +5%'",
+    "  guide 'Speciality Priority Up +5'-> game 'Specialty Priority +5'",
+    "  guide 'Support Chain Event Frequency +1' -> game 'Support Chain Event Frequency Lvl +1'",
+    "",
+    "PRIORITY - verbatim from the guide: High Priority / Great Value / Good Value /",
+    "Low Priority / Special. The ordering between 'High Priority' and 'Great Value'",
+    "is NOT stated by the guide; Phase 2 must make that judgement call rather than",
+    "assume this list is ranked.",
+    "",
     "Effect 'kind' values:",
-    "  stat           - immediate flat stat gain, e.g. 'Speed +5'",
-    "  skill_pts      - immediate skill point gain",
-    "  skill_hint     - immediate skill hint, e.g. 'Skill Hint Lvl +1 (Medium)'",
-    "  training_gain  - persistent training bonus, e.g. 'Training Speed Gain +1'",
+    "  stat            - immediate flat stat gain ('Speed +22')",
+    "  all_stats       - flat gain to every stat",
+    "  skill_pts       - immediate skill point gain",
+    "  all_points      - flat gain to every performance point currency",
+    "  training_gain   - persistent training bonus ('Training Speed Gain +1')",
+    "  skill_pt_bonus  - persistent skill point bonus",
     "  specialty_priority, support_chain_freq, friendship_training_effectiveness",
-    "                 - concert bonuses; apply only after the next concert",
-    "Mastery effects apply immediately; concert effects apply after the next",
-    "concert and last to the end of the career. Techniques have no concert effect.",
+    "                  - concert bonuses; apply only after the next concert",
     "Only SONGS raise the Hype gauge (confirmed: learning a technique did not move it)."
   ],
-  "currencies": ["Da", "Pa", "Vo", "Vi", "Co"],
+  "currencies": [
+    "Da",
+    "Pa",
+    "Vo",
+    "Vi",
+    "Co"
+  ],
   "techniques": {
     "_comment": [
       "Techniques are intentionally not catalogued. Their mastery effects are small",
       "and interchangeable (+5 to a stat, +5 skill points, one skill hint), so",
       "knowing which technique is on offer does not change what the bot should do.",
-      "The purchase logic just takes an affordable one.",
+      "The guide likewise gives only categories, not individual technique rows.",
       "",
-      "Observed technique effects, for reference only: Speed/Stamina/Power/Wit +5;",
-      "Skill Pts +5; Skill Hint Lvl +1 (distance varies per offer); and from a",
-      "tutorial mockup, Guts +12 - so higher tiers with larger effects do exist and",
-      "may deserve revisiting if one shows up with a meaningfully bigger payoff.",
-      "The guide singles out ENERGY techniques as the best pick; none has been seen",
-      "yet, so if one appears it is worth special-casing."
+      "Observed effects: Speed/Stamina/Power/Wit +5; Skill Pts +5; Skill Hint Lvl +1",
+      "(distance varies per offer); and from a mockup, Guts +12 - so higher tiers",
+      "with larger effects exist. The guide singles out ENERGY techniques as the",
+      "best pick; none seen yet, so special-case one if it appears."
     ],
     "cost_rules": {
-      "stat_basics": "10 of the currency matching the stat raised - Speed/Da, Stamina/Pa, Power/Vo, Wit/Co. Confirmed for 4 of 5 stats; Guts/Vi unseen. Keys off the stat, NOT the lesson name ('Audience Involvement Basics' costs Passion).",
+      "stat_basics": "10 of the currency matching the stat raised - Speed/Da, Stamina/Pa, Power/Vo, Wit/Co. Confirmed 4 of 5 stats; Guts/Vi unseen. Keys off the stat, NOT the lesson name ('Audience Involvement Basics' costs Passion).",
       "skill_hint": "15 of a single currency, which varies per offer.",
-      "skill_pts": "10 of a single currency, which varies per offer."
+      "skill_pts": "10 of a single currency, which varies per offer.",
+      "tiers": "Amount scales with tier at a fixed ratio of 2x the stat gain: Basics +5 -> 10, Intermediate +8 -> 16, dual +4/+4 -> 8+8. ('Makeup Advanced Class' +12 would imply 24, unverified.) Energy +20 cost Vi 25, which does not follow the 2x rule - energy has no stat, so both its currency and price look independent.",
+      "dual_stat": "A dual-stat technique costs BOTH matching currencies: 'Isolation Basics' (Speed +4, Wit +4) cost Da 8 + Co 8. The stat->currency rule extends cleanly to multi-stat techniques."
     },
+    "costs_and_effects_vary_per_offer": "Same technique, different offer: 'Watch an Up-and-Coming Idol's Concert' Vo10 -> Da10; 'Group Lesson Basics' Da15 -> Co15 AND its hint changed (Medium) -> (Mile). Always read live.",
     "purchase_logic_notes": [
       "Buying is the ONLY way to roll a new offer set - waiting never rotates it.",
       "So when a set holds no song worth taking, buying a technique is the",
       "mechanism for rolling toward one, not merely a consolation purchase.",
       "",
-      "Because of that, prefer the technique that spends currency the songs you",
-      "want do NOT need. Songs cost 21 of each of two currencies, so draining a",
-      "song currency on a 10-15 point technique can delay a song purchase by",
-      "several turns. Cheapest-affordable is a reasonable default;",
-      "cheapest-affordable-that-avoids-needed-currencies is strictly better."
-    ]
+      "Prefer the technique that spends currency the songs you want do NOT need.",
+      "Songs cost 21-42 of specific currencies, so draining a song currency on a",
+      "10-15 point technique can delay a song by several turns."
+    ],
+    "energy_techniques": {
+      "why": "The guide rates energy techniques the best pick (they avoid a rest turn). CONFIRMED in game: 'Facial-Slimming Massage' grants Energy +20 for Vi 25 - a whole turn's worth of energy for the price of a mid-tier technique.",
+      "detection_primary": "OCR the mastery row (img[y0+50:y0+112, 200:680]) and test for 'energy' case-insensitively. The row must be read anyway to know what a technique does, so this is nearly free. Verified: reads 'Energy +20'.",
+      "detection_corroborating": "The category icon (img[y0+64:y0+184, 63:183]) is BLUE for energy and warm for everything else. Measured over 12 technique icons: energy = median hue 102 with 97.1% blue pixels; all 11 others = hue 18-46 with <=1.2% blue. Test: saturated pixels with hue 90-130 exceeding ~50% of the icon. Use as a second signal so a single OCR slip cannot mis-skip an energy technique.",
+      "icon_hue_also_encodes_category": "Observed medians: ~19 orange = flat stat, ~46 green = skill hint, ~102 blue = energy. Consistent with the guide's mention of category icons; could classify other categories later if useful."
+    },
+    "mastery_row_can_hold_multiple_effects": "'Isolation Basics' showed two effects stacked in one mastery row; OCR returns them concatenated ('Speed +4Wit +4'). Split on the +N boundaries when parsing."
   },
   "songs": [
     {
-      "name": "Zero Is Where the Center Stands!",
-      "type": "song",
-      "mastery": [{"raw": "Training Speed Gain +1", "kind": "training_gain", "target": "Speed", "value": 1}],
-      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
-      "source": "observed",
-      "cost_observations": [
-        {"set": 2, "cost": {"Da": 21, "Pa": 0, "Vo": 0, "Vi": 21, "Co": 0}}
+      "name": "Believe in Miracles!",
+      "guide_name": "Believe in Miracles",
+      "priority": "High Priority",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Training Wit Gain +1",
+          "kind": "training_gain",
+          "target": "Wit",
+          "value": 1
+        }
       ],
-      "notes": "LEARNED from set 2. Confirmation showed Speed Gain +0 -> +1 and Support Chain Event Frequency Lvl 0 -> Lvl 1."
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 21,
+        "Vo": 0,
+        "Vi": 0,
+        "Co": 21
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 5,
+          "cost": {
+            "Da": 0,
+            "Pa": 21,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 21
+          }
+        }
+      ]
     },
     {
-      "name": "Getaway! Fallin' Love",
-      "type": "song",
-      "mastery": [{"raw": "Training Guts Gain +1", "kind": "training_gain", "target": "Guts", "value": 1}],
-      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
-      "source": "observed",
-      "cost_observations": [
-        {"set": 2, "cost": {"Da": 21, "Pa": 0, "Vo": 0, "Vi": 21, "Co": 0}}
+      "name": "Run n' Run!",
+      "priority": "Great Value",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Skill Points +22",
+          "kind": "skill_pts",
+          "value": 22
+        }
       ],
-      "notes": ""
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 14,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 16,
+        "Co": 14
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 7,
+          "cost": {
+            "Da": 14,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 16,
+            "Co": 14
+          }
+        }
+      ],
+      "notes": "Only THREE-currency song in the start tier; also the cheapest per-currency, so often affordable early. NAME MISMATCH: the guide lists this as 'RUNxRUN'; Global shows 'Run n' Run!'. Cost and effects match exactly.",
+      "guide_name": "RUNxRUN"
+    },
+    {
+      "name": "Full Speed Ahead! Umadol Power☆",
+      "guide_name": "Full Speed Ahead! Umadol Power",
+      "priority": "Great Value",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Speed +22",
+          "kind": "stat",
+          "target": "Speed",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 32,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 12,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 6,
+          "cost": {
+            "Da": 32,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 12,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "In-game name carries a trailing star glyph the guide omits; similarity 0.984, so fuzzy matching is safe."
+    },
+    {
+      "name": "Here Comes Our Time",
+      "priority": "Great Value",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Power +22",
+          "kind": "stat",
+          "target": "Power",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 0,
+        "Vo": 32,
+        "Vi": 0,
+        "Co": 12
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 8,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 32,
+            "Vi": 0,
+            "Co": 12
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zero Is Where the Center Stands!",
+      "guide_name": "Zero is Where the Center Stands",
+      "priority": "Good Value",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Training Speed Gain +1",
+          "kind": "training_gain",
+          "target": "Speed",
+          "value": 1
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 21,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 21,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 2,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "LEARNED in the capture run."
     },
     {
       "name": "Go This Way",
-      "type": "song",
-      "mastery": [{"raw": "Training Power Gain +1", "kind": "training_gain", "target": "Power", "value": 1}],
-      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
-      "source": "observed",
-      "cost_observations": [
-        {"set": 2, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 21}},
-        {"set": 5, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 21}}
+      "priority": "Good Value",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Training Power Gain +1",
+          "kind": "training_gain",
+          "target": "Power",
+          "value": 1
+        }
       ],
-      "notes": "Reappeared in set 5 with an IDENTICAL cost - unlike techniques, this song's currencies did not move between appearances. Only one repeat sample so far."
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 0,
+        "Vo": 21,
+        "Vi": 0,
+        "Co": 21
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 2,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 5,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 6,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        }
+      ],
+      "notes": "Three appearances, identical cost every time - the evidence that song costs are stable per song."
     },
     {
       "name": "Ring Ring Diary",
-      "type": "song",
-      "mastery": [{"raw": "Training Stamina Gain +1", "kind": "training_gain", "target": "Stamina", "value": 1}],
-      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
-      "source": "observed",
-      "cost_observations": [
-        {"set": 5, "cost": {"Da": 0, "Pa": 21, "Vo": 0, "Vi": 21, "Co": 0}}
+      "priority": "Low Priority",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Training Stamina Gain +1",
+          "kind": "training_gain",
+          "target": "Stamina",
+          "value": 1
+        }
       ],
-      "notes": ""
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 21,
+        "Vo": 0,
+        "Vi": 21,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 5,
+          "cost": {
+            "Da": 0,
+            "Pa": 21,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 6,
+          "cost": {
+            "Da": 0,
+            "Pa": 21,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 14,
+          "cost": {
+            "Da": 0,
+            "Pa": 21,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 15,
+          "cost": {
+            "Da": 0,
+            "Pa": 21,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        }
+      ]
     },
     {
-      "name": "Believe in Miracles!",
-      "type": "song",
-      "mastery": [{"raw": "Training Wit Gain +1", "kind": "training_gain", "target": "Wit", "value": 1}],
-      "concert": [{"raw": "Specialty Priority +5", "kind": "specialty_priority", "value": 5}],
-      "source": "observed",
-      "cost_observations": [
-        {"set": 5, "cost": {"Da": 0, "Pa": 21, "Vo": 0, "Vi": 0, "Co": 21}}
+      "name": "Getaway! Fallin' Love",
+      "guide_name": "Run Away! Fallin' Love",
+      "priority": "Low Priority",
+      "unlock": "start",
+      "mastery": [
+        {
+          "raw": "Training Guts Gain +1",
+          "kind": "training_gain",
+          "target": "Guts",
+          "value": 1
+        }
       ],
-      "notes": "Was on the guide's not-yet-encountered list; now observed. First REAL sighting of a Specialty Priority concert bonus, which until now had only appeared in a tutorial mockup - corroborating that those mockups carry accurate data."
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 21,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 21,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 2,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 7,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 9,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 13,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        },
+        {
+          "set": 16,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "NAME MISMATCH: the guide calls it 'Run Away! Fallin' Love'; the game shows 'Getaway! Fallin' Love'. Cost and effects match exactly, so it is the same song - match on the in-game name."
     },
     {
-      "name": "Make debut!",
-      "type": "song",
-      "mastery": [],
-      "concert": [],
-      "source": "observed",
+      "name": "Run For Our Dream",
+      "priority": "High Priority",
+      "unlock": "after_1st_concert",
+      "mastery": [
+        {
+          "raw": "Skill Point Bonus +2",
+          "kind": "skill_pt_bonus",
+          "value": 2
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 21,
+        "Vo": 0,
+        "Vi": 21,
+        "Co": 0
+      },
+      "source": "guide",
       "cost_observations": [],
-      "notes": "AWARDED, not purchased - present in the Set List with Total Songs Learned = 1 before any song was bought. Effects not yet inspected."
+      "notes": "Guide advises buying this immediately for the cumulative skill point bonus."
+    },
+    {
+      "name": "Our Bluebird Days",
+      "priority": "High Priority",
+      "unlock": "after_1st_concert",
+      "mastery": [
+        {
+          "raw": "Speed Training +2",
+          "kind": "training_gain",
+          "target": "Speed",
+          "value": 2
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 21,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 42,
+        "Co": 0
+      },
+      "source": "guide",
+      "cost_observations": []
+    },
+    {
+      "name": "Hey, Guess What!",
+      "priority": "Low Priority",
+      "unlock": "after_1st_concert",
+      "mastery": [
+        {
+          "raw": "Guts Training +2",
+          "kind": "training_gain",
+          "target": "Guts",
+          "value": 2
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 42,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 21,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 7,
+          "cost": {
+            "Da": 42,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 21,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "Name uses interpuncts; OCR may render them as spaces or dots. Match loosely. NAME MISMATCH: the guide lists this as 'A・NO・NE'; Global shows 'Hey, Guess What!'. Cost and effects match exactly.",
+      "guide_name": "A・NO・NE"
+    },
+    {
+      "name": "Grow Up and Shine!",
+      "priority": "High Priority",
+      "unlock": "after_2nd_concert",
+      "mastery": [
+        {
+          "raw": "Training Skill Pt Gain +3",
+          "kind": "skill_pt_bonus",
+          "value": 3
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 21,
+        "Pa": 0,
+        "Vo": 21,
+        "Vi": 0,
+        "Co": 21
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 8,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 11,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 15,
+          "cost": {
+            "Da": 21,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 21
+          }
+        }
+      ],
+      "notes": "NAME MISMATCH: guide lists 'Grow Up, Shine!'; Global shows 'Grow Up and Shine!'. Mastery wording also differs: guide 'Skill Point Bonus +3' vs game 'Training Skill Pt Gain +3'. Three-currency cost. Guide advises buying immediately for the cumulative skill point bonus.",
+      "guide_name": "Grow Up, Shine!"
     },
     {
       "name": "Seven Colors Scenery",
-      "type": "song",
-      "mastery": [{"raw": "Training Power Gain +2", "kind": "training_gain", "target": "Power", "value": 2}],
-      "concert": [{"raw": "Specialty Priority +5", "kind": "specialty_priority", "value": 5}],
-      "source": "illustration",
-      "cost_observations": [
-        {"set": null, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 42}}
+      "priority": "Great Value",
+      "unlock": "after_2nd_concert",
+      "mastery": [
+        {
+          "raw": "Power Training +2",
+          "kind": "training_gain",
+          "target": "Power",
+          "value": 2
+        }
       ],
-      "notes": "Tutorial popup page 1 mockup - cost legible but unverified in a real offer. The same popup's other mockup matched real data exactly."
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 0,
+        "Vo": 21,
+        "Vi": 0,
+        "Co": 42
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 12,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 42
+          }
+        },
+        {
+          "set": 13,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 42
+          }
+        },
+        {
+          "set": 15,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 42
+          }
+        },
+        {
+          "set": 16,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 42
+          }
+        }
+      ],
+      "notes": "First seen in a tutorial mockup, whose cost the guide confirmed; now CONFIRMED in a real offer set (set 12) at the same Vo21+Co42. The mockups do carry real data."
+    },
+    {
+      "name": "Sunbeam Cheer",
+      "priority": "Great Value",
+      "unlock": "after_2nd_concert",
+      "mastery": [
+        {
+          "raw": "Wit Training +2",
+          "kind": "training_gain",
+          "target": "Wit",
+          "value": 2
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Support Chain Event Frequency Lvl +1",
+          "kind": "support_chain_freq",
+          "value": 1
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 42,
+        "Vo": 0,
+        "Vi": 0,
+        "Co": 21
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 8,
+          "cost": {
+            "Da": 0,
+            "Pa": 42,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 9,
+          "cost": {
+            "Da": 0,
+            "Pa": 42,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 10,
+          "cost": {
+            "Da": 0,
+            "Pa": 42,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 21
+          }
+        },
+        {
+          "set": 11,
+          "cost": {
+            "Da": 0,
+            "Pa": 42,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 21
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hoppity Sunny Days♪",
+      "priority": "Low Priority",
+      "unlock": "after_2nd_concert",
+      "mastery": [
+        {
+          "raw": "Stamina Training +2",
+          "kind": "training_gain",
+          "target": "Stamina",
+          "value": 2
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 42,
+        "Vo": 21,
+        "Vi": 0,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 9,
+          "cost": {
+            "Da": 0,
+            "Pa": 42,
+            "Vo": 21,
+            "Vi": 0,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "In-game the name renders with a space before the note glyph ('Hoppity Sunny Days ♪')."
+    },
+    {
+      "name": "Precious Treasure Box",
+      "priority": "High Priority",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Speed +26",
+          "kind": "stat",
+          "target": "Speed",
+          "value": 26
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +10%",
+          "kind": "friendship_training_effectiveness",
+          "value": 10,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 42,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 26,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 16,
+          "cost": {
+            "Da": 42,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 26,
+            "Co": 0
+          }
+        }
+      ],
+      "notes": "NAME MISMATCH: guide lists 'My Favourite Treasure Box'; Global shows 'Precious Treasure Box'.",
+      "guide_name": "My Favourite Treasure Box"
+    },
+    {
+      "name": "Fanfare for the Future!",
+      "priority": "High Priority",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Guts +26",
+          "kind": "stat",
+          "target": "Guts",
+          "value": 26
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +10%",
+          "kind": "friendship_training_effectiveness",
+          "value": 10,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 26,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 42,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 10,
+          "cost": {
+            "Da": 26,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 42,
+            "Co": 0
+          }
+        }
+      ],
+      "guide_name": "Fanfare For The Future",
+      "notes": "Global renders it 'Fanfare for the Future!' (lower-case 'for the', trailing '!')."
+    },
+    {
+      "name": "Present March♪",
+      "priority": "Great Value",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Power +22",
+          "kind": "stat",
+          "target": "Power",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 0,
+        "Vo": 22,
+        "Vi": 0,
+        "Co": 22
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 10,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 22,
+            "Vi": 0,
+            "Co": 22
+          }
+        },
+        {
+          "set": 12,
+          "cost": {
+            "Da": 0,
+            "Pa": 0,
+            "Vo": 22,
+            "Vi": 0,
+            "Co": 22
+          }
+        }
+      ],
+      "notes": "In-game the name renders with a space before the note glyph ('Present March ♪')."
+    },
+    {
+      "name": "Dream Sky",
+      "priority": "Great Value",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Wit +22",
+          "kind": "stat",
+          "target": "Wit",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 22,
+        "Vo": 0,
+        "Vi": 0,
+        "Co": 22
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 14,
+          "cost": {
+            "Da": 0,
+            "Pa": 22,
+            "Vo": 0,
+            "Vi": 0,
+            "Co": 22
+          }
+        }
+      ]
+    },
+    {
+      "name": "The World's at Our Whim",
+      "priority": "Great Value",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Stamina +22",
+          "kind": "stat",
+          "target": "Stamina",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 0,
+        "Pa": 32,
+        "Vo": 12,
+        "Vi": 0,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 11,
+          "cost": {
+            "Da": 0,
+            "Pa": 32,
+            "Vo": 12,
+            "Vi": 0,
+            "Co": 0
+          }
+        },
+        {
+          "set": 12,
+          "cost": {
+            "Da": 0,
+            "Pa": 32,
+            "Vo": 12,
+            "Vi": 0,
+            "Co": 0
+          }
+        },
+        {
+          "set": 14,
+          "cost": {
+            "Da": 0,
+            "Pa": 32,
+            "Vo": 12,
+            "Vi": 0,
+            "Co": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sky-Blue Spring",
+      "priority": "Great Value",
+      "unlock": "after_3rd_concert",
+      "mastery": [
+        {
+          "raw": "Guts +22",
+          "kind": "stat",
+          "target": "Guts",
+          "value": 22
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +5%",
+          "kind": "friendship_training_effectiveness",
+          "value": 5,
+          "unit": "percent"
+        }
+      ],
+      "cost": {
+        "Da": 12,
+        "Pa": 0,
+        "Vo": 0,
+        "Vi": 32,
+        "Co": 0
+      },
+      "source": "observed+guide",
+      "cost_observations": [
+        {
+          "set": 13,
+          "cost": {
+            "Da": 12,
+            "Pa": 0,
+            "Vo": 0,
+            "Vi": 32,
+            "Co": 0
+          }
+        }
+      ],
+      "guide_name": "Sky-blue Spring",
+      "notes": "Global capitalises it 'Sky-Blue Spring'."
+    },
+    {
+      "name": "Make debut!",
+      "guide_name": "Make Debut!",
+      "priority": "Special",
+      "unlock": "award",
+      "mastery": [
+        {
+          "raw": "All Points +10",
+          "kind": "all_points",
+          "value": 10
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Specialty Priority +5",
+          "kind": "specialty_priority",
+          "value": 5
+        }
+      ],
+      "cost": null,
+      "source": "observed+guide",
+      "cost_observations": [],
+      "notes": "AWARDED 4 turns after career start, not purchased. Confirmed present in the Set List with Total Songs Learned = 1 before any song was bought - so that counter includes awards and must never be derived from purchase history."
+    },
+    {
+      "name": "GIRLS' LEGEND U",
+      "priority": "Special",
+      "unlock": "award",
+      "mastery": [
+        {
+          "raw": "All Stats +10",
+          "kind": "all_stats",
+          "value": 10
+        }
+      ],
+      "concert": [
+        {
+          "raw": "Friendship Training Effectiveness +10%",
+          "kind": "friendship_training_effectiveness",
+          "value": 10,
+          "unit": "percent"
+        }
+      ],
+      "cost": null,
+      "source": "guide",
+      "cost_observations": [],
+      "notes": "AWARDED after Senior Year Early December with 18+ total songs learned. This is the target behind the guide's 18-song push."
     }
   ],
   "offer_sets": [
     {
       "set": 1,
-      "when": "Junior Year Pre-Debut, first shop visit",
-      "balances": {"Da": 10, "Pa": 10, "Vo": 10, "Vi": 10, "Co": 10},
-      "offers": ["Watch an Up-and-Coming Idol's Concert", "Dance Step Basics", "Vocal Training Basics"],
+      "when": "Junior pre-debut, first shop visit",
+      "balances": {
+        "Da": 10,
+        "Pa": 10,
+        "Vo": 10,
+        "Vi": 10,
+        "Co": 10
+      },
+      "offers": [
+        "Watch an Up-and-Coming Idol's Concert",
+        "Dance Step Basics",
+        "Vocal Training Basics"
+      ],
       "learned": "Dance Step Basics"
     },
     {
       "set": 2,
-      "when": "immediately after learning from set 1; unchanged across a turn boundary",
-      "balances": {"Da": 0, "Pa": 10, "Vo": 10, "Vi": 10, "Co": 10},
-      "offers": ["Zero Is Where the Center Stands!", "Getaway! Fallin' Love", "Go This Way"],
+      "when": "after learning from set 1; unchanged across a turn boundary",
+      "balances": {
+        "Da": 0,
+        "Pa": 10,
+        "Vo": 10,
+        "Vi": 10,
+        "Co": 10
+      },
+      "offers": [
+        "Zero Is Where the Center Stands!",
+        "Getaway! Fallin' Love",
+        "Go This Way"
+      ],
       "learned": "Zero Is Where the Center Stands!"
     },
     {
       "set": 3,
-      "when": "immediately after learning the song from set 2",
-      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 36},
-      "offers": ["Composure Training Basics", "Group Lesson Basics", "Watch an Up-and-Coming Idol's Concert"],
+      "when": "after learning the song from set 2",
+      "balances": {
+        "Da": 7,
+        "Pa": 10,
+        "Vo": 10,
+        "Vi": 2,
+        "Co": 36
+      },
+      "offers": [
+        "Composure Training Basics",
+        "Group Lesson Basics",
+        "Watch an Up-and-Coming Idol's Concert"
+      ],
       "learned": "Composure Training Basics"
     },
     {
       "set": 4,
-      "when": "immediately after learning the technique from set 3",
-      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 26},
-      "offers": ["Audience Involvement Basics", "Group Lesson Basics", "Vocal Training Basics"],
+      "when": "after learning the technique from set 3",
+      "balances": {
+        "Da": 7,
+        "Pa": 10,
+        "Vo": 10,
+        "Vi": 2,
+        "Co": 26
+      },
+      "offers": [
+        "Audience Involvement Basics",
+        "Group Lesson Basics",
+        "Vocal Training Basics"
+      ],
       "learned": "Group Lesson Basics"
     },
     {
       "set": 5,
-      "when": "immediately after learning the technique from set 4",
-      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 11},
-      "offers": ["Go This Way", "Ring Ring Diary", "Believe in Miracles!"],
+      "when": "after learning the technique from set 4",
+      "balances": {
+        "Da": 7,
+        "Pa": 10,
+        "Vo": 10,
+        "Vi": 2,
+        "Co": 11
+      },
+      "offers": [
+        "Go This Way",
+        "Ring Ring Diary",
+        "Believe in Miracles!"
+      ],
       "learned": null,
-      "note": "All three songs, none affordable - the state where the bot must decline and keep training. Note the set went techniques (4) -> songs (5) without a technique-count threshold being obviously crossed."
+      "note": "All songs, none affordable - the state where the bot must decline and keep training."
+    },
+    {
+      "set": 6,
+      "when": "Junior Early Aug, after several turns of training",
+      "balances": {
+        "Da": 41,
+        "Pa": 5,
+        "Vo": 29,
+        "Vi": 16,
+        "Co": 6
+      },
+      "offers": [
+        "Go This Way",
+        "Full Speed Ahead! Umadol Power☆",
+        "Ring Ring Diary"
+      ],
+      "learned": null,
+      "note": "Only the off-pattern song (Da32+Vi12) was affordable; both 21+21 songs were not. A larger total cost (44) was payable while a smaller one (42) was not - per-currency affordability is not approximable by a total."
+    },
+    {
+      "set": 7,
+      "when": "after the 1st concert",
+      "balances": {
+        "Da": 14,
+        "Pa": 15,
+        "Vo": 59,
+        "Vi": 39,
+        "Co": 32
+      },
+      "offers": [
+        "Getaway! Fallin' Love",
+        "Run n' Run!",
+        "Hey, Guess What!"
+      ],
+      "learned": null,
+      "note": "All three matched the catalogue exactly on cost and effects; two carried different Global names than the guide."
+    },
+    {
+      "set": 8,
+      "when": "after the 2nd concert",
+      "balances": {
+        "Da": 71,
+        "Pa": 44,
+        "Vo": 49,
+        "Vi": 54,
+        "Co": 27
+      },
+      "offers": [
+        "Sunbeam Cheer",
+        "Here Comes Our Time",
+        "Grow Up and Shine!"
+      ],
+      "learned": null,
+      "note": "All three affordable and all three matched the catalogue exactly."
+    },
+    {
+      "set": 9,
+      "when": "Classic Early Sep area",
+      "balances": {
+        "Da": 41,
+        "Pa": 16,
+        "Vo": 41,
+        "Vi": 6,
+        "Co": 38
+      },
+      "offers": [
+        "Getaway! Fallin' Love",
+        "Hoppity Sunny Days ♪",
+        "Sunbeam Cheer"
+      ],
+      "learned": null,
+      "note": "None affordable; all three matched the catalogue."
+    },
+    {
+      "set": 10,
+      "when": "after the 3rd concert (Classic Late Dec passed)",
+      "balances": {
+        "Da": 60,
+        "Pa": 25,
+        "Vo": 35,
+        "Vi": 90,
+        "Co": 28
+      },
+      "offers": [
+        "Sunbeam Cheer",
+        "Fanfare for the Future!",
+        "Present March ♪"
+      ],
+      "learned": null,
+      "note": "First set containing 3rd-concert-tier songs, confirming that tier unlocked."
+    },
+    {
+      "set": 11,
+      "when": "after the 3rd concert",
+      "balances": {
+        "Da": 34,
+        "Pa": 25,
+        "Vo": 35,
+        "Vi": 24,
+        "Co": 4
+      },
+      "offers": [
+        "The World's at Our Whim",
+        "Grow Up and Shine!",
+        "Sunbeam Cheer"
+      ],
+      "learned": null,
+      "note": "None affordable (Co down to 4)."
+    },
+    {
+      "set": 12,
+      "when": "after the 3rd concert",
+      "balances": {
+        "Da": 61,
+        "Pa": 11,
+        "Vo": 53,
+        "Vi": 24,
+        "Co": 0
+      },
+      "offers": [
+        "The World's at Our Whim",
+        "Present March ♪",
+        "Seven Colors Scenery"
+      ],
+      "learned": null,
+      "note": "None affordable (Co exhausted to 0). First REAL-offer sighting of Seven Colors Scenery, previously known only from a tutorial mockup."
+    },
+    {
+      "set": 13,
+      "when": "after the 3rd concert, balances recovered",
+      "balances": {
+        "Da": 138,
+        "Pa": 73,
+        "Vo": 34,
+        "Vi": 80,
+        "Co": 69
+      },
+      "offers": [
+        "Seven Colors Scenery",
+        "Getaway! Fallin' Love",
+        "Sky-Blue Spring"
+      ],
+      "learned": null,
+      "note": "All three affordable. First THREE-DIGIT balance seen (Da 138), which exposed a clipping bug in the balance OCR crop - see observations."
+    },
+    {
+      "set": 14,
+      "when": "after the 3rd concert",
+      "balances": {
+        "Da": 102,
+        "Pa": 73,
+        "Vo": 34,
+        "Vi": 24,
+        "Co": 69
+      },
+      "offers": [
+        "The World's at Our Whim",
+        "Ring Ring Diary",
+        "Dream Sky"
+      ],
+      "learned": null,
+      "note": "All three affordable. Second 3-digit balance (Da 102), read correctly by the corrected crops."
+    },
+    {
+      "set": 15,
+      "when": "after the 3rd concert",
+      "balances": {
+        "Da": 78,
+        "Pa": 27,
+        "Vo": 34,
+        "Vi": 24,
+        "Co": 47
+      },
+      "offers": [
+        "Seven Colors Scenery",
+        "Ring Ring Diary",
+        "Grow Up and Shine!"
+      ],
+      "learned": null,
+      "note": "All repeats; no new songs."
+    },
+    {
+      "set": 16,
+      "when": "after the 3rd concert",
+      "balances": {
+        "Da": 4,
+        "Pa": 27,
+        "Vo": 13,
+        "Vi": 0,
+        "Co": 26
+      },
+      "offers": [
+        "Precious Treasure Box",
+        "Getaway! Fallin' Love",
+        "Seven Colors Scenery"
+      ],
+      "learned": null,
+      "note": "None affordable. Last 3rd-concert-tier song located."
     }
   ],
-  "not_yet_encountered": {
-    "_comment": "Named by uma.guide but never seen in game yet. Listed so they can be recognised and filled in when they appear.",
-    "songs": [
-      "RUNxRUN",
-      "Full Speed Ahead! Umadol Power",
-      "Run For Our Dream",
-      "Grow Up, Shine!",
-      "GIRLS' LEGEND U"
-    ]
-  },
   "observations": {
-    "cost_is_per_offer": "Confirmed twice: 'Watch an Up-and-Coming Idol's Concert' Vo 10 (set 1) -> Da 10 (set 3); 'Group Lesson Basics' Da 15 (set 3) -> Co 15 (set 4). Amount held both times, currency changed. Never cache a lesson's cost - read it from the card each visit.",
-    "effects_can_vary_too": "Confirmed: 'Group Lesson Basics' granted Skill Hint Lvl +1 (Medium) in set 3 and (Mile) in set 4. The hint's target distance is randomised per offer, so effect text must also be read live, not looked up.",
-    "cost_tiers": [
-      "Stat 'Basics' techniques: 10 of a single currency.",
-      "'Group Lesson Basics' (skill hint): 15 of a single currency.",
-      "First-tier songs: 21 of each of TWO currencies."
-    ],
-    "song_cost_includes_its_own_currency": "PATTERN, 5/5 samples: a song's cost always includes the currency matching the stat its Mastery bonus trains. Speed->Da{Da,Vi}, Guts->Vi{Da,Vi}, Power->Vo{Vo,Co}, Stamina->Pa{Pa,Vi}, Wit->Co{Pa,Co}. The SECOND currency varies and is not predictable from the stat (two different songs, Speed and Guts, shared the same {Da,Vi} pair). Useful as a planning heuristic - to afford a Speed-training song you will need Dance - but always read the actual pair off the card.",
-    "basics_currency_matches_stat": "CONFIRMED across four of five stats: each stat 'Basics' technique costs 10 of the currency matching the stat it raises - Speed/Da (Dance Step Basics), Stamina/Pa (Audience Involvement Basics), Power/Vo (Vocal Training Basics), Wit/Co (Composure Training Basics). This corroborates the guide's mapping Dance=Speed, Passion=Stamina, Vocal=Power, Composure=Wit. The Visual/Guts basics technique has not been seen yet. NOTE the lesson NAME does not encode the currency ('Audience Involvement Basics' costs Passion), so the rule keys off the stat raised, not the title. Non-stat techniques (Skill Pts, Skill Hint) take an arbitrary currency that varies per offer.",
-    "lane_badges_are_not_this_mapping": "The per-lane currency badges on the training screen showed Power=Co and Wit=Pa, which contradicts the stat-currency mapping proven here. Whatever those badges mean, it is not the fixed lane-to-currency assignment.",
-    "unpicked_lessons_return": "Confirmed: an offer passed over in set 1 reappeared in set 3, and 'Group Lesson Basics'/'Vocal Training Basics' both reappeared in set 4. Declining a lesson does not remove it from the pool.",
-    "concert_bonus_stacking": "Concert bonuses are levelled and cumulative (Support Chain Event Frequency Lvl 0 -> Lvl 1). Repeat purchases raise the level rather than granting a flat effect.",
-    "offer_set_behaviour": "Three offers at a time, no scrolling. The set is fixed until a lesson is purchased (verified pixel-identical across a turn boundary), then immediately refreshes and the shop reopens on the new set. Confirmed for BOTH technique and song purchases (set 2->3 after a song, set 3->4 after a technique). Sets can be homogeneous - sets 1, 3 and 4 were all techniques, set 2 all songs.",
-    "unlock": "Learning one technique unlocked the first song tier, matching the guide's technique-gated song progression. Set 3 reverted to techniques, so song availability is not permanent once unlocked - it likely depends on cumulative technique count per the guide's 1-2-3-4-4-2-3 progression."
+    "guide_cross_validation": "Every song observed in game matched the guide exactly on cost and effects (7/7), including one seen only in a tutorial mockup. The guide's song table is therefore treated as reliable for the 15 songs not yet encountered. Two naming differences exist - see 'Getaway! Fallin' Love' and the star/interpunct glyphs.",
+    "song_costs_are_stable_per_song": "'Go This Way' appeared three times at Vo21+Co21 and 'Ring Ring Diary' twice at Pa21+Vi21. Every repeated TECHNIQUE, by contrast, changed currency. Song planning across turns is therefore sound.",
+    "song_cost_shapes": "Songs cost 1-3 currencies at 12/14/16/21/22/26/32/42 per currency. There is no flat song price and no reliable relationship between total cost and affordability.",
+    "song_cost_includes_its_own_currency": "Holds across the whole guide table: a song's cost always includes the currency matching the stat its Mastery bonus targets (Speed->Da, Stamina->Pa, Power->Vo, Guts->Vi, Wit->Co). Useful for deciding which currency to farm.",
+    "songs_can_have_flat_stat_masteries": "Mastery kind does not partition by lesson type. Songs may grant a flat stat ('Speed +22'), a training gain ('Training Speed Gain +1'), skill points, or a skill point bonus.",
+    "concert_bonus_types": "Three only: Support Chain Event Frequency Lvl +N, Specialty Priority +N, Friendship Training Effectiveness +N%. These are exactly the three fields the Concert Info panel tracks, so that screen verifies purchases landed.",
+    "offer_set_behaviour": "Three offers at a time, no scrolling. A set is fixed until a purchase (verified pixel-identical across a turn boundary), then immediately refreshes and the shop reopens on the new set - confirmed for both technique and song purchases. Passed-over lessons return later. Sets can be homogeneous.",
+    "unlock_tiers": "8 songs from the start, +3 after the 1st concert, +4 after the 2nd, +6 after the 3rd, plus 2 awards. The guide also gates song availability behind cumulative technique counts, which is consistent with observed sets alternating between all-technique and all-song.",
+    "guide_names_are_unreliable": "The guide's SONG NAMES are often JP or pre-localisation titles. Of 10 songs seen in game: 3 substantively renamed (RUNxRUN -> 'Run n' Run!', A NO NE -> 'Hey, Guess What!', 'Run Away! Fallin' Love' -> 'Getaway! Fallin' Love'), 4 differ only in punctuation/case/glyph, 3 match exactly. Expect several of the still-unobserved songs to carry different Global names. COST AND EFFECTS, by contrast, have matched 10/10. Do NOT look songs up by name against this file - see 'match_by_signature_not_name'.",
+    "match_by_signature_not_name": "The tuple (per-currency cost + mastery effect + concert effect) is UNIQUE across all 21 purchasable songs - verified, zero collisions - so the runtime can identify an offered song from what it reads on the card and look up 'priority' without trusting the name. Cost alone is NOT unique (Zero Is Where the Center Stands!/Getaway! Fallin' Love share Da21+Vi21; Ring Ring Diary/Run For Our Dream share Pa21+Vi21), so the effect must be part of the key.",
+    "balance_crop_must_fit_three_digits": "Performance point balances are RIGHT-ALIGNED, so a 3-digit value extends left into the gap beside the currency chip. The original crops (Da 112-168 etc.) clipped the leading digit: Da 138 read as 38. Corrected crops, verified 80/80 across 16 shop captures including the 3-digit case: Da 98-168, Pa 221-291, Vo 344-414, Vi 467-537, Co 590-660 (x1 = 98 + 123*i, x2 = 168 + 123*i), all at y 98-150. Caps rise by 50 per concert from 200, so 3-digit balances are normal in the late career and this WILL bite otherwise."
+  },
+  "strategy_from_guide": {
+    "junior": "Prioritise friendship bonds. Take Mastery stat-bonus songs over concert-bonus songs early. Secure at least three songs before the 1st concert for Great Success.",
+    "classic": "Buy 'Run For Our Dream' and 'Grow Up, Shine!' as soon as they unlock - their skill point bonuses compound over the rest of the career. Limit to about four songs per concert cycle.",
+    "senior": "Aim for 18 total songs to earn GIRLS' LEGEND U. Prefer stat Mastery bonuses over concert bonuses late, since the application window shrinks.",
+    "races": "The guide states races give zero performance points, so race only for goals and secret events. UNVERIFIED in game.",
+    "great_success": "Read the Hype gauge rather than counting songs - it is the authoritative readiness signal and resets each concert."
   }
 }
