@@ -73,6 +73,78 @@ Verified unaffected on this scenario: stat row, cap row, skill points,
 `race_available`'s probe now lands in a gap and reads False forever — **the
 flag is written and never read anywhere**, so it is harmless.
 
+### Race-day menu (different layout — capture `49_predebut_race_menu.png`)
+
+On a race turn the main menu is replaced by a three-button row and the mid
+section shifts down ~65px.
+
+| Button | Centre | Extent |
+|--------|--------|--------|
+| Skills | (122, 1085) | ~35-215 |
+| **Race!** | (358, 1085) | ~235-480 |
+| Lessons | (600, 1085) | ~505-695 |
+
+A red "Race Day" banner sits above Race! at ~(291,986)-(470,1020).
+
+**This works today, no change needed.** `REF_TRAIN_BTN` does not match
+(0.573) so the screen is *not* `CULTIVATE_MAIN_MENU`; instead both
+`CULTIVATE_GOAL_RACE` templates match (0.981 / 0.883), so
+`script_cultivate_goal_race` runs and clicks
+`CULTIVATE_GOAL_RACE_INTER_1` **(391,1081) — inside Race!** ✅
+
+Consequences worth knowing:
+
+- **PHASE 2 HAZARD: the Lessons button moves on race day.** The normal-menu
+  Lessons point (443,1130) lands inside **Race!** here, and the race-day
+  Lessons button is at (600,1085) instead. A lesson-buying routine that
+  blind-clicks (443,1130) would start the debut race. Confirm the normal
+  layout (or the absence of the Race Day banner) before clicking Lessons.
+- `CULTIVATE_RACE` (564,1127) lands inside **Lessons** on this screen. Not
+  reached today because the screen resolves to `CULTIVATE_GOAL_RACE`, but it
+  means the normal-menu race point is actively wrong here.
+- The stat row sits ~65px lower (values ~y 920-950, vs 855-885 normally).
+  Nothing parses stats on this screen, so it is inert — but do not reuse the
+  main-menu stat crops on race-day captures.
+- The turn box reads **"GOAL"** instead of a number, so the pre-debut date
+  branch OCRs no digits and falls back to `12 - (len(history)+1)`. The
+  literal string `parse_date` looks for, "Race Day", is on the banner rather
+  than in the turn box. The resulting date is imprecise but tolerable — on a
+  race turn it only feeds tactic selection (`tactic_list[int((date-1)/24)]`,
+  which still indexes 0). Revisit if a wrong date causes trouble; the
+  existing `race_day_menu.png` template (matched 0.883 here) is a clean way
+  to detect the state if a GC-specific shortcut is ever needed.
+
+### BREAKING: career-end screen has a third button
+
+Capture: `78_career_end.png`. The Complete Career screen gains a **Lessons**
+button, so the row holds three buttons instead of two and everything shifted.
+A "Remaining Performance Points" row sits above them (y ~880-925).
+
+| Button | Grand Concert coord | Extent |
+|--------|---------------------|--------|
+| Skills (+ "Skill Pts N") | **(122, 1053)** | ~35-215 |
+| **Complete Career** | **(360, 1053)** | ~228-490 |
+| Lessons | (597, 1053) | ~505-690 |
+
+**Both existing points are wrong here:**
+
+| Point | Coord | What is under it |
+|-------|-------|------------------|
+| `CULTIVATE_FINISH_LEARN_SKILL` | (215,1050) | the **gap** between Skills and Complete Career (samples B118 G76 R98 — the trainee's clothing) |
+| `CULTIVATE_FINISH_CONFIRM` | (512,1050) | the **Lessons** button's left border (samples B239 G129 R238 magenta) |
+
+So at career end the bot would fail to open Skills, and **would open the
+Lessons shop instead of completing the career** — a stall, and one that parks
+it on the screen where the `script_info` auto-buy hazard lives.
+
+The UI itself is still detected correctly (`cultivate_finish.png` matches at
+0.982), so only the two click points need scenario-specific values.
+
+*Measurement note:* hue segmentation failed on this row too — the chibi
+artwork and white button text break it. The extents above come from marker
+overlay plus direct pixel sampling, which is the method that has held up on
+every one of these button rows.
+
 ### Date crops — scenario-specific, required
 
 URA's crops do not fit (the new left rail pushed the turns box up), and the
@@ -105,8 +177,16 @@ Numeric fields:
 
 | Field | y | Da | Pa | Vo | Vi | Co |
 |-------|---|----|----|----|----|-----|
-| Balances (header) | 98-150 | 112-168 | 238-294 | 364-420 | 490-546 | 614-670 |
+| Balances (header) | 98-150 | **98-168** | **221-291** | **344-414** | **467-537** | **590-660** |
 | Cost (per card) | `y0+195..y0+238` | 248-302 | 340-394 | 430-484 | 528-582 | 624-678 |
+
+Balance crops follow `x1 = 98 + 123*i`, `x2 = 168 + 123*i`. They are **wider
+than the value looks like it needs** on purpose: balances are right-aligned,
+so a 3-digit value grows leftward into the chip gap. Narrower crops (the
+original 112-168 etc.) clip the leading digit — **Da 138 read as 38**. Caps
+rise by 50 per concert from 200, so 3-digit balances are normal late in a
+career and this would bite in every run. Verified 80/80 across 16 shop
+captures including the 3-digit case.
 
 Other controls: Concert Info (618,1083), Full Stats (472,1083),
 Back (82,1231).
@@ -240,6 +320,58 @@ spark-reroll flow already uses in `script_info`.
 The bot never needs Schedule: sets don't expire and points only accumulate.
 Avoiding it is the requirement.
 
+### CONFIRMED STALL: the post-concert "Bonuses Updated!" popup
+
+Capture: `60_post_concert_popup.png`. Appears after a concert. Modal card
+reading **"Bonuses Updated!"** / "Concert bonuses updated!", with
+**Close (202,834)** and **Confirm (517,834)**.
+
+**This hangs the bot today.** Traced end to end:
+
+1. No UI template matches → `NOT_FOUND_UI`.
+2. `script_not_found_ui`'s heuristics all miss — its title probe
+   (`img[200:400,100:620]`) OCRs to empty, and its middle probe
+   (`img[800:1000,200:560]`) OCRs to `"confirnose"` (Confirm+Close mashed),
+   hitting no result or goal keyword.
+3. Falls through to `click(719, 1)`, which cannot dismiss a modal.
+4. The screen never changes, so the watchdog force-restarts the game after
+   ~90s — and the restart likely lands back on the same popup.
+
+`btn/close.png` does match it (0.983 at (132,805)), but `BTN_CLOSE` gates no
+UI, so that match goes unused.
+
+**Fix (Phase 1, required):** template cut and validated at
+`resource/umamusume/ui/concert_bonuses_updated.png` (292x32, from
+`img[741:773, 213:505]` — the body text). Scores **1.000** on this screen and
+at most **0.568** on all 60+ other captures, so it is safe to gate a UI on.
+Wire it as a UI in `asset/ui.py` + `scan_ui_list`, add a handler in the script
+dict, and click one of the two buttons.
+
+**Click Close (202,834), not Confirm.** Resolved by observation: Confirm opens
+a second modal, **"Active Concert Bonuses"** (`62_post_concert_detail.png`),
+whose only exit is Close at (360,918). Taking Close on the first popup skips
+that screen entirely.
+
+That second screen would stall too if reached: it matches `info.png` at 1.000
+so `script_info` runs, but "Active Concert Bonuses" matches no `TITLE` entry
+(best 0.488), so it falls to the unknown-title branch and clicks `ESCAPE`
+(5,715) — which lands *inside* this dialog's Active Songs strip and does
+nothing. If the Close-on-first-popup handler ever misses, add a handler for
+this screen too, clicking (360,918).
+
+### The detail screen independently validates the song catalogue
+
+"Active Concert Bonuses" showed **Friendship Training Effectiveness +5%,
+Specialty Priority +10, Support Chain Event Frequency Lvl 1** against four
+active songs (Make debut!, Believe in Miracles!, Full Speed Ahead! Umadol
+Power, Zero Is Where the Center Stands!). Summing those songs' concert
+bonuses from `grand_concert_lessons.json` predicts exactly those three totals,
+including the +10 arising from two separate +5 sources.
+
+Useful twice over: it confirms the catalogue's concert-bonus data, and it
+means this screen can be used to **verify a purchase actually landed** if
+lesson buying ever needs auditing.
+
 ### Existing screen-detection collisions (mostly pre-existing)
 
 | Screen | Detected as | Consequence |
@@ -315,6 +447,125 @@ Watch: a later tutorial screen whose bubble says "ask about" or "are you sure"
 would be intercepted by the committed Unity Cup handler and click its
 hardcoded (360,893)/(360,762). On this layout those coincide with the same two
 choices, so it would still be right — but by coincidence.
+
+---
+
+## Light Hello (Pal card)
+
+**Assume Light Hello is always in the deck for this scenario.** She is the
+scenario-linked Pal; the guide credits her with energy/mood recovery, "See Ya
+Later!" hints, and a 45% chance of +20 performance points of whichever
+currency is scarcest — which interacts directly with the per-currency lesson
+costs.
+
+Practical consequences:
+- The existing pal machinery (`pal_name`, `pal_thresholds`,
+  `prioritize_recreation`, `pal_event_stage` detection) is in play, so the
+  Grand Concert preset should ship with Light Hello configured rather than
+  leaving recreation logic dormant.
+- Her outing chain must actually be unlocked — see the event below.
+
+### Recreation menu — existing pal stage detection works unchanged
+
+Capture: `54_recreation_light_hello.png`. Opened from Recreation once her
+outing chain is unlocked. Two rows: **Light Hello** (with a Friendship Gauge
+and an Event Progress track of **5 chevron pips**) and **Silence Suzuka**
+("Trainee Umamusume"). Cancel at **(360, 918)**.
+
+The pal-stage sampling already in `script_cultivate_main_menu` lines up
+**exactly**. Its 5-stage sample points read the empty-pip colour perfectly:
+
+| Sample | Value | Empty test (`|b-223|,|g-227|,|r-231| <= 5`) |
+|--------|-------|--------------------------------------------|
+| (452,474) | B223 G227 R231 | pass |
+| (503,474) | B223 G227 R231 | pass |
+| (554,474) | B223 G227 R231 | pass |
+| (605,474) | B223 G227 R231 | pass |
+
+Five pips → the `num_stages == 5` branch → `4 - 4 + 1 = stage 1`, correct for
+a fresh chain. So `pal_thresholds` should be configured with **5 stages** for
+this scenario.
+
+Two prerequisites before this can ever run:
+
+1. **Recreation must actually open** — the detection is reached by clicking
+   `CULTIVATE_TRIP`, which lands in a gap on this scenario. Fixing that point
+   to (279,1130) is what makes pal detection work at all.
+2. **Dismissal is unverified.** After sampling, the existing code closes the
+   menu with `ctx.ctrl.click(5, 5)` — an outside-the-dialog tap. Whether that
+   dismisses this dialog is untested; **Cancel (360,918)** is the reliable
+   target if it does not.
+
+### Event: "Embrace Those Emotions!" → always choice 1
+
+Support Card Event, choices "I'd be glad to!" / "Sorry, I'm a little strapped
+for time…". **Always take choice 1**: accepting unlocks recreation with her,
+which is the main value of the card. Declining does not.
+
+Was absent from `event_data.json`, so the bot fell through to its hardcoded
+default of choice 2 — the wrong one. Now pinned in `event_map`
+(`event/manifest.py`) as `"Embrace Those Emotions!": 1`, because it is a
+strategic override rather than a stat calculation; that dict is checked before
+the events database and survives any regeneration of it. (The Tutorial event
+is forced the other way, via stuffed stats inside `event_data.json` — fragile
+for exactly that reason.)
+
+Verified: the name crop reads it cleanly, `find_similar_text` resolves it at
+the 0.8 threshold even with the trailing "!" dropped, and the nearest of the
+920 known event names is only 0.558 similar, so there is no hijack risk.
+
+---
+
+## Scenario skill event: "Closer Together" — needs a WebUI config option
+
+Capture: `77_skill_choice_event.png`. A Main Scenario Event late in the career
+(seen Senior Year Early Nov) offering **five** options, each granting a
+different skill — the Grand Concert equivalent of Unity Cup's skill choice.
+This is the one decision in the scenario that genuinely needs user
+configuration, since the right pick depends on the trainee's build.
+
+| # | On-screen text | Skill granted |
+|---|----------------|---------------|
+| 1 | "A song with some call-and-response"… | **Full Tilt** |
+| 2 | "Gratitude towards the fans, without whom I would not be running"… | **Concentration** |
+| 3 | "I'm home"… | **Trackblazer** |
+| 4 | "The power to achieve a breakthrough"… | **All I've Got** |
+| 5 | "Song brings us closer together"… | **Lane Legerdemain** |
+
+Options 1-4 correspond to the scenario-linked characters (Smart Falcon,
+Mihono Bourbon, Silence Suzuka, Agnes Tachyon); option 5 is the
+character-independent choice. Per the guide, each option grants the
+character's **gold** skill if that character is your trainee or their support
+card is in the deck, and a **white** alternative otherwise — so the skill a
+given option actually yields depends on the deck:
+
+| Character | Gold | White alternative |
+|-----------|------|-------------------|
+| Smart Falcon | Full Speed! | Full Tilt |
+| Mihono Bourbon | Concentration | Focus |
+| Silence Suzuka | Trackblazer | Rosy Outlook |
+| Agnes Tachyon | Come What May | All I've Got |
+| (none) | — | Lane Legerdemain |
+
+The mapping above was captured on a Silence Suzuka run, which is why options
+3 and 2 showed gold names while 1 and 4 showed whites.
+
+### Bot status and what is needed
+
+- Event name crop reads **"Closer Together"** cleanly.
+- All **5 selectors** are detected at (50, 369/501/633/765/897) — the
+  `dialogue1..5` fallback handles the taller 5-option layout fine, and the ROI
+  does not clip the fifth row.
+- The event is **absent from `event_data.json`**, so the bot currently falls
+  through to its hardcoded default of **choice 2** — arbitrary, not a choice.
+- Do **not** pin this in `event_map`: unlike the Light Hello events, there is
+  no single correct answer. It belongs in a `GrandConcertConfig` field
+  (`scenario_skill_choice`, 1-5) exposed as a dropdown in the task setup UI,
+  following the pattern of `UraConfig.skill_event_weight` and
+  `AoharuConfig.preliminary_round_selections` in `scenario/configs.py`.
+- Watch for the Unity Cup tutorial override, which fires on exactly 5
+  selectors — it is gated on `event_name == "tutorial"`, so it does not
+  trigger here, but any future 5-option handling should keep that gate intact.
 
 ---
 
