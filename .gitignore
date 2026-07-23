@@ -141,3 +141,6 @@ brayscript/
 scripts/
 
 .agent/rules/
+# Reference captures (Grand Concert Phase 0 recon and older debug shots).
+# Kept local for now; a curated subset will be committed in a later phase.
+screenshot/
