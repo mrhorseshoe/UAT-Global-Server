@@ -35,7 +35,25 @@ event_map: dict[str, Union[callable, int]] = {
     "新手教程": 2,
     "团队成员终于集结完毕!": aoharuhai_team_name_event,
     "A Team at Last": aoharuhai_team_name_event,
-            
+
+    # Light Hello (Pal). Her outing chain is the main value of the card, so
+    # always take choice 1 regardless of the stat payout - declining does not
+    # advance it. Pinned here rather than in event_data.json because these are
+    # strategic overrides, not stat calculations, and this dict is checked
+    # first and survives any regeneration of the events database.
+    #
+    # These are standalone events with unrelated names (verified on Gametora),
+    # not a series, so each has to be pinned individually. None was present in
+    # event_data.json, so without these the bot fell through to its default of
+    # choice 2 - the wrong one every time.
+    #
+    # The event-name crop (img[237:283, 111:480]) truncates long titles -
+    # "Bonding with Light Hello: Letting Loose" is read as "...Letting L" -
+    # but that still matches its key at 0.946, well over the 0.8 threshold.
+    "Embrace Those Emotions!": 1,
+    "Bonding with Light Hello: Letting Loose": 1,
+    "Hidden Beneath the Regolith": 1,
+
     # Note: Global Server events will be handled by auto_research_event_choice()
 }
 
