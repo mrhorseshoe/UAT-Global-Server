@@ -1,0 +1,221 @@
+{
+  "_comment": [
+    "Grand Concert ('Our Grand Concert') SONG catalogue.",
+    "Built during Phase 0 capture; consumed later by the Grand Concert lesson policy.",
+    "",
+    "SCOPE - songs only. Techniques are deliberately NOT catalogued; see the",
+    "'techniques' section below for why, and for the rules the purchase logic",
+    "actually needs.",
+    "",
+    "RUNTIME CONTRACT - this file is NOT a source of costs.",
+    "The bot must read name, cost and affordability off the shop screen on every",
+    "visit. Cost is a property of the OFFER, not the lesson: 'Watch an Up-and-",
+    "Coming Idol's Concert' appeared in set 1 costing Vo 10 and again in set 3",
+    "costing Da 10 - same lesson, same amount, different currency. Costs here are",
+    "a historical record, stored as a list of observations, never a single value.",
+    "",
+    "What this file IS for:",
+    "  1. Strategic priors - which lessons are worth buying, which the screen",
+    "     cannot tell us. That is the only part the runtime should consult.",
+    "  2. Offline fixtures for building and regression-testing the shop parser.",
+    "  3. A record of how offers vary, so wrong assumptions get caught early.",
+    "EFFECTS VARY TOO. 'Group Lesson Basics' granted 'Skill Hint Lvl +1 (Medium)'",
+    "in set 3 and 'Skill Hint Lvl +1 (Mile)' in set 4 - the qualifier changed with",
+    "the offer. Read effects off the card as well; the values here are a record of",
+    "what has been seen, not a lookup table.",
+    "",
+    "Append new entries and new cost observations as they are encountered.",
+    "Keep 'source' honest:",
+    "  observed     - read directly off the Lessons shop or its confirmation dialog",
+    "  illustration - read off a tutorial popup mockup; costs may not be real",
+    "  guide        - named by an external guide, never seen in game yet",
+    "",
+    "Currency codes match the in-game chips:",
+    "  Da Dance | Pa Passion | Vo Vocal | Vi Visual | Co Composure",
+    "",
+    "Effect 'kind' values:",
+    "  stat           - immediate flat stat gain, e.g. 'Speed +5'",
+    "  skill_pts      - immediate skill point gain",
+    "  skill_hint     - immediate skill hint, e.g. 'Skill Hint Lvl +1 (Medium)'",
+    "  training_gain  - persistent training bonus, e.g. 'Training Speed Gain +1'",
+    "  specialty_priority, support_chain_freq, friendship_training_effectiveness",
+    "                 - concert bonuses; apply only after the next concert",
+    "Mastery effects apply immediately; concert effects apply after the next",
+    "concert and last to the end of the career. Techniques have no concert effect.",
+    "Only SONGS raise the Hype gauge (confirmed: learning a technique did not move it)."
+  ],
+  "currencies": ["Da", "Pa", "Vo", "Vi", "Co"],
+  "techniques": {
+    "_comment": [
+      "Techniques are intentionally not catalogued. Their mastery effects are small",
+      "and interchangeable (+5 to a stat, +5 skill points, one skill hint), so",
+      "knowing which technique is on offer does not change what the bot should do.",
+      "The purchase logic just takes an affordable one.",
+      "",
+      "Observed technique effects, for reference only: Speed/Stamina/Power/Wit +5;",
+      "Skill Pts +5; Skill Hint Lvl +1 (distance varies per offer); and from a",
+      "tutorial mockup, Guts +12 - so higher tiers with larger effects do exist and",
+      "may deserve revisiting if one shows up with a meaningfully bigger payoff.",
+      "The guide singles out ENERGY techniques as the best pick; none has been seen",
+      "yet, so if one appears it is worth special-casing."
+    ],
+    "cost_rules": {
+      "stat_basics": "10 of the currency matching the stat raised - Speed/Da, Stamina/Pa, Power/Vo, Wit/Co. Confirmed for 4 of 5 stats; Guts/Vi unseen. Keys off the stat, NOT the lesson name ('Audience Involvement Basics' costs Passion).",
+      "skill_hint": "15 of a single currency, which varies per offer.",
+      "skill_pts": "10 of a single currency, which varies per offer."
+    },
+    "purchase_logic_notes": [
+      "Buying is the ONLY way to roll a new offer set - waiting never rotates it.",
+      "So when a set holds no song worth taking, buying a technique is the",
+      "mechanism for rolling toward one, not merely a consolation purchase.",
+      "",
+      "Because of that, prefer the technique that spends currency the songs you",
+      "want do NOT need. Songs cost 21 of each of two currencies, so draining a",
+      "song currency on a 10-15 point technique can delay a song purchase by",
+      "several turns. Cheapest-affordable is a reasonable default;",
+      "cheapest-affordable-that-avoids-needed-currencies is strictly better."
+    ]
+  },
+  "songs": [
+    {
+      "name": "Zero Is Where the Center Stands!",
+      "type": "song",
+      "mastery": [{"raw": "Training Speed Gain +1", "kind": "training_gain", "target": "Speed", "value": 1}],
+      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
+      "source": "observed",
+      "cost_observations": [
+        {"set": 2, "cost": {"Da": 21, "Pa": 0, "Vo": 0, "Vi": 21, "Co": 0}}
+      ],
+      "notes": "LEARNED from set 2. Confirmation showed Speed Gain +0 -> +1 and Support Chain Event Frequency Lvl 0 -> Lvl 1."
+    },
+    {
+      "name": "Getaway! Fallin' Love",
+      "type": "song",
+      "mastery": [{"raw": "Training Guts Gain +1", "kind": "training_gain", "target": "Guts", "value": 1}],
+      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
+      "source": "observed",
+      "cost_observations": [
+        {"set": 2, "cost": {"Da": 21, "Pa": 0, "Vo": 0, "Vi": 21, "Co": 0}}
+      ],
+      "notes": ""
+    },
+    {
+      "name": "Go This Way",
+      "type": "song",
+      "mastery": [{"raw": "Training Power Gain +1", "kind": "training_gain", "target": "Power", "value": 1}],
+      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
+      "source": "observed",
+      "cost_observations": [
+        {"set": 2, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 21}},
+        {"set": 5, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 21}}
+      ],
+      "notes": "Reappeared in set 5 with an IDENTICAL cost - unlike techniques, this song's currencies did not move between appearances. Only one repeat sample so far."
+    },
+    {
+      "name": "Ring Ring Diary",
+      "type": "song",
+      "mastery": [{"raw": "Training Stamina Gain +1", "kind": "training_gain", "target": "Stamina", "value": 1}],
+      "concert": [{"raw": "Support Chain Event Frequency Lvl +1", "kind": "support_chain_freq", "value": 1}],
+      "source": "observed",
+      "cost_observations": [
+        {"set": 5, "cost": {"Da": 0, "Pa": 21, "Vo": 0, "Vi": 21, "Co": 0}}
+      ],
+      "notes": ""
+    },
+    {
+      "name": "Believe in Miracles!",
+      "type": "song",
+      "mastery": [{"raw": "Training Wit Gain +1", "kind": "training_gain", "target": "Wit", "value": 1}],
+      "concert": [{"raw": "Specialty Priority +5", "kind": "specialty_priority", "value": 5}],
+      "source": "observed",
+      "cost_observations": [
+        {"set": 5, "cost": {"Da": 0, "Pa": 21, "Vo": 0, "Vi": 0, "Co": 21}}
+      ],
+      "notes": "Was on the guide's not-yet-encountered list; now observed. First REAL sighting of a Specialty Priority concert bonus, which until now had only appeared in a tutorial mockup - corroborating that those mockups carry accurate data."
+    },
+    {
+      "name": "Make debut!",
+      "type": "song",
+      "mastery": [],
+      "concert": [],
+      "source": "observed",
+      "cost_observations": [],
+      "notes": "AWARDED, not purchased - present in the Set List with Total Songs Learned = 1 before any song was bought. Effects not yet inspected."
+    },
+    {
+      "name": "Seven Colors Scenery",
+      "type": "song",
+      "mastery": [{"raw": "Training Power Gain +2", "kind": "training_gain", "target": "Power", "value": 2}],
+      "concert": [{"raw": "Specialty Priority +5", "kind": "specialty_priority", "value": 5}],
+      "source": "illustration",
+      "cost_observations": [
+        {"set": null, "cost": {"Da": 0, "Pa": 0, "Vo": 21, "Vi": 0, "Co": 42}}
+      ],
+      "notes": "Tutorial popup page 1 mockup - cost legible but unverified in a real offer. The same popup's other mockup matched real data exactly."
+    }
+  ],
+  "offer_sets": [
+    {
+      "set": 1,
+      "when": "Junior Year Pre-Debut, first shop visit",
+      "balances": {"Da": 10, "Pa": 10, "Vo": 10, "Vi": 10, "Co": 10},
+      "offers": ["Watch an Up-and-Coming Idol's Concert", "Dance Step Basics", "Vocal Training Basics"],
+      "learned": "Dance Step Basics"
+    },
+    {
+      "set": 2,
+      "when": "immediately after learning from set 1; unchanged across a turn boundary",
+      "balances": {"Da": 0, "Pa": 10, "Vo": 10, "Vi": 10, "Co": 10},
+      "offers": ["Zero Is Where the Center Stands!", "Getaway! Fallin' Love", "Go This Way"],
+      "learned": "Zero Is Where the Center Stands!"
+    },
+    {
+      "set": 3,
+      "when": "immediately after learning the song from set 2",
+      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 36},
+      "offers": ["Composure Training Basics", "Group Lesson Basics", "Watch an Up-and-Coming Idol's Concert"],
+      "learned": "Composure Training Basics"
+    },
+    {
+      "set": 4,
+      "when": "immediately after learning the technique from set 3",
+      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 26},
+      "offers": ["Audience Involvement Basics", "Group Lesson Basics", "Vocal Training Basics"],
+      "learned": "Group Lesson Basics"
+    },
+    {
+      "set": 5,
+      "when": "immediately after learning the technique from set 4",
+      "balances": {"Da": 7, "Pa": 10, "Vo": 10, "Vi": 2, "Co": 11},
+      "offers": ["Go This Way", "Ring Ring Diary", "Believe in Miracles!"],
+      "learned": null,
+      "note": "All three songs, none affordable - the state where the bot must decline and keep training. Note the set went techniques (4) -> songs (5) without a technique-count threshold being obviously crossed."
+    }
+  ],
+  "not_yet_encountered": {
+    "_comment": "Named by uma.guide but never seen in game yet. Listed so they can be recognised and filled in when they appear.",
+    "songs": [
+      "RUNxRUN",
+      "Full Speed Ahead! Umadol Power",
+      "Run For Our Dream",
+      "Grow Up, Shine!",
+      "GIRLS' LEGEND U"
+    ]
+  },
+  "observations": {
+    "cost_is_per_offer": "Confirmed twice: 'Watch an Up-and-Coming Idol's Concert' Vo 10 (set 1) -> Da 10 (set 3); 'Group Lesson Basics' Da 15 (set 3) -> Co 15 (set 4). Amount held both times, currency changed. Never cache a lesson's cost - read it from the card each visit.",
+    "effects_can_vary_too": "Confirmed: 'Group Lesson Basics' granted Skill Hint Lvl +1 (Medium) in set 3 and (Mile) in set 4. The hint's target distance is randomised per offer, so effect text must also be read live, not looked up.",
+    "cost_tiers": [
+      "Stat 'Basics' techniques: 10 of a single currency.",
+      "'Group Lesson Basics' (skill hint): 15 of a single currency.",
+      "First-tier songs: 21 of each of TWO currencies."
+    ],
+    "song_cost_includes_its_own_currency": "PATTERN, 5/5 samples: a song's cost always includes the currency matching the stat its Mastery bonus trains. Speed->Da{Da,Vi}, Guts->Vi{Da,Vi}, Power->Vo{Vo,Co}, Stamina->Pa{Pa,Vi}, Wit->Co{Pa,Co}. The SECOND currency varies and is not predictable from the stat (two different songs, Speed and Guts, shared the same {Da,Vi} pair). Useful as a planning heuristic - to afford a Speed-training song you will need Dance - but always read the actual pair off the card.",
+    "basics_currency_matches_stat": "CONFIRMED across four of five stats: each stat 'Basics' technique costs 10 of the currency matching the stat it raises - Speed/Da (Dance Step Basics), Stamina/Pa (Audience Involvement Basics), Power/Vo (Vocal Training Basics), Wit/Co (Composure Training Basics). This corroborates the guide's mapping Dance=Speed, Passion=Stamina, Vocal=Power, Composure=Wit. The Visual/Guts basics technique has not been seen yet. NOTE the lesson NAME does not encode the currency ('Audience Involvement Basics' costs Passion), so the rule keys off the stat raised, not the title. Non-stat techniques (Skill Pts, Skill Hint) take an arbitrary currency that varies per offer.",
+    "lane_badges_are_not_this_mapping": "The per-lane currency badges on the training screen showed Power=Co and Wit=Pa, which contradicts the stat-currency mapping proven here. Whatever those badges mean, it is not the fixed lane-to-currency assignment.",
+    "unpicked_lessons_return": "Confirmed: an offer passed over in set 1 reappeared in set 3, and 'Group Lesson Basics'/'Vocal Training Basics' both reappeared in set 4. Declining a lesson does not remove it from the pool.",
+    "concert_bonus_stacking": "Concert bonuses are levelled and cumulative (Support Chain Event Frequency Lvl 0 -> Lvl 1). Repeat purchases raise the level rather than granting a flat effect.",
+    "offer_set_behaviour": "Three offers at a time, no scrolling. The set is fixed until a lesson is purchased (verified pixel-identical across a turn boundary), then immediately refreshes and the shop reopens on the new set. Confirmed for BOTH technique and song purchases (set 2->3 after a song, set 3->4 after a technique). Sets can be homogeneous - sets 1, 3 and 4 were all techniques, set 2 all songs.",
+    "unlock": "Learning one technique unlocked the first song tier, matching the guide's technique-gated song progression. Set 3 reverted to techniques, so song availability is not permanent once unlocked - it likely depends on cumulative technique count per the guide's 1-2-3-4-4-2-3 progression."
+  }
+}
