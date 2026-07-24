@@ -11,6 +11,7 @@ from bot.recog.ocr import ocr_line, find_similar_text
 from module.umamusume.asset.point import *
 from module.umamusume.asset.ui import INFO
 from module.umamusume.context import UmamusumeContext
+from module.umamusume.script.cultivate_task.grand_concert import gc_point, ensure_normal_career_tab
 import bot.base.log as logger
 from bot.engine.ctrl import reset_task
 
@@ -418,7 +419,7 @@ def script_info(ctx: UmamusumeContext):
                 except Exception:
                     pass
                 time.sleep(1)
-                ctx.ctrl.click_by_point(CULTIVATE_FINISH_LEARN_SKILL)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_LEARN_SKILL))
         if title_text == TITLE[11]: #Complete Career
             ctx.ctrl.click_by_point(CULTIVATE_FINISH_CONFIRM_AGAIN)
         if title_text == TITLE[12]: #Umamusume Details
@@ -456,7 +457,7 @@ def script_info(ctx: UmamusumeContext):
             ctx.cultivate_detail.turn_info.turn_operation.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_RACE
             ctx.cultivate_detail.turn_info.turn_operation.race_id = target_race_id
             log.info("racing for unmet requirements")
-            ctx.ctrl.click_by_point(CULTIVATE_RACE)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_RACE))
 
 
             if not matching_races:
@@ -566,7 +567,7 @@ def script_info(ctx: UmamusumeContext):
             ctx.cultivate_detail.turn_info.turn_operation.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_RACE
             ctx.cultivate_detail.turn_info.turn_operation.race_id = target_race_id
             log.info("🏁 Set race operation for G1 goal farming")
-            ctx.ctrl.click_by_point(CULTIVATE_RACE)  # Navigate to race menu
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_RACE))  # Navigate to race menu
             log.info("📋 Navigated to race selection to work towards G1 goals")
             
             # If no user-selected races found, search for suitable race template
@@ -657,7 +658,7 @@ def script_info(ctx: UmamusumeContext):
             ctx.cultivate_detail.turn_info.turn_operation.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_RACE
             ctx.cultivate_detail.turn_info.turn_operation.race_id = target_race_id
             log.info("🏁 Set race operation for fan farming")
-            ctx.ctrl.click_by_point(CULTIVATE_RACE)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_RACE))
             log.info("📋 Navigated to race selection to work towards fan goals")
             
             # If no user-selected races found, search for suitable race template
@@ -769,7 +770,15 @@ def script_info(ctx: UmamusumeContext):
                         
                 ctx.ctrl.click(520, 1180, "")
             else:
-                # Fallback for non-Fujikiseki Factor Confirmation
+                # Fallback for non-Fujikiseki Factor Confirmation.
+                # On Global this branch is also what actually starts a career:
+                # the final confirmation screen fuzzy-matches "Factor
+                # Confirmation" and (525,1185) lands on Start Career!. Grand
+                # Concert added an Independent Training tab there, so check the
+                # career mode before committing. The check no-ops on the real
+                # Factor Confirmation dialog, which has no tab row.
+                if ensure_normal_career_tab(ctx, ctx.current_screen):
+                    return
                 ctx.ctrl.click_by_point(CULTIVATE_RESULT_DIVISOR_CONFIRM)
             
         if title_text == TITLE[34]:  # New Difficulty Unlocked

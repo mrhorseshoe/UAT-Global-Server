@@ -12,10 +12,11 @@ flagged below.
 
 ## START HERE
 
-**Status: Phase 0 (capture/recon) COMPLETE.** A full career was played
-manually and captured. **Phase 1 has not been started — no scenario code
-exists yet.** Read this whole file before writing any; it is short and every
-number in it was measured, not assumed.
+**Status: Phase 0 (capture/recon) COMPLETE. Phase 1 WRITTEN, NOT YET SHAKEN
+DOWN.** A full career was played manually and captured, and the Phase 1
+checklist at the bottom is implemented and validated against those captures —
+but it has never been run against the emulator. Read this whole file before
+changing any of it; every number in it was measured, not assumed.
 
 **Branch:** all work is on `grand-concert` (6 commits, pushed to the
 `mrhorseshoe` fork). `main` is untouched, so URA/Unity Cup runs are unaffected.
@@ -29,8 +30,21 @@ number in it was measured, not assumed.
 | `resource/umamusume/ui/concert_bonuses_updated.png` | post-concert popup template (validated 1.000 vs <=0.568) |
 | `docs/captures/grand_concert/` | 23 reference captures + README naming what each backs |
 
-**Code already changed** (`event/manifest.py`): three Light Hello events
-pinned to choice 1. That is the only behaviour change so far.
+**Code already changed:**
+| File | What |
+|------|------|
+| `event/manifest.py` | three Light Hello events pinned to choice 1 |
+| `define.py` | `SCENARIO_TYPE_GRAND_CONCERT = 3` |
+| `scenario/grand_concert_scenario.py` | new — Aoharu's parsers minus the spirit-burst/ESB block, plus the date crops |
+| `scenario/configs.py` | `GrandConcertConfig` (empty until Phase 2) |
+| `script/cultivate_task/grand_concert.py` | new — point overrides, popup handler, career-mode tab check, recreation dismissal |
+| `asset/point.py`, `asset/ui.py`, `asset/template.py` | `GC_*` points, the popup UI and the scenario template |
+| `context.py`, `task.py`, `manifest.py`, `TaskEditModal.vue` | wire-up |
+| `cultivate.py`, `info.py` | call sites routed through `gc_point(ctx, …)` |
+
+All shared points go through `gc_point(ctx, POINT)`, which returns the
+argument unchanged on every other scenario — URA and Unity Cup behaviour is
+untouched (asserted directly).
 
 **Phased plan:** Phase 1 = plumbing + a career that completes buying nothing.
 Phase 2 = lesson economy. Phase 3 = training-score integration. Phase 4 =
@@ -610,41 +624,62 @@ Ordered so the run gets further with each item. Nothing here needs the
 emulator except the final shakedown.
 
 **Plumbing**
-- [ ] `SCENARIO_TYPE_GRAND_CONCERT = 3` in `define.py`
-- [ ] `GrandConcertScenario(BaseScenario)` in `scenario/grand_concert_scenario.py`
-      — copy Aoharu's `parse_training_result` / `parse_training_support_card`
-      **minus the spirit-burst/ESB block** (verified to work unchanged), and
-      override `get_date_img` = `img[40:66, 160:380]`,
-      `get_turn_to_race_img` = `img[55:118, 15:150]`
-- [ ] Wire-up: `context.py` match arm, `task.py`, an (initially empty)
+- [x] `SCENARIO_TYPE_GRAND_CONCERT = 3` in `define.py`
+- [x] `GrandConcertScenario(BaseScenario)` in `scenario/grand_concert_scenario.py`
+      — Aoharu's `parse_training_result` / `parse_training_support_card`
+      **minus the spirit-burst/ESB block**, plus `get_date_img` =
+      `img[40:66, 160:380]`, `get_turn_to_race_img` = `img[55:118, 15:150]`.
+      Verified end to end: `parse_date` on `05_main_menu_predebut.png` now
+      returns **1** (it returned 11 before).
+- [x] Wire-up: `context.py` match arm, `task.py`, an empty
       `GrandConcertConfig` in `scenario/configs.py`, web UI dropdown option
-      (the slot MANT vacated)
-- [ ] Scenario template and the 4-card carousel need **no work** — the
-      template is committed and validated, and `script_scenario_select`'s
-      6-swipe loop already covers 4 cards
+- [x] Scenario template and the 4-card carousel need **no work** — confirmed:
+      the template matches `02_grand_concert_f2.png` and the 6-swipe loop
+      covers the carousel
 
 **The three known breakages**
-- [ ] **Bottom-row click points** — Recreation (279,1130) is the required fix;
-      Infirmary (115,1130) is marginal at the old coord; Races (607,1130)
-      works either way. Scenario-branch them.
-- [ ] **Career-end click points** — Skills (122,1053), Complete Career
-      (360,1053). Both current values are wrong and one opens the shop.
-- [ ] **Post-concert popup handler** — wire
-      `ui/concert_bonuses_updated.png` as a UI in `asset/ui.py` +
-      `scan_ui_list`, add it to the script dict, click **Close (202,834)**.
-      Not Confirm — that opens a second modal that stalls the same way.
+- [x] **Bottom-row click points** — `GC_CULTIVATE_MEDIC` (115,1130),
+      `GC_CULTIVATE_TRIP` (279,1130), `GC_CULTIVATE_RACE` (607,1130), routed
+      through `gc_point()` at every main-menu call site in `cultivate.py` and
+      `info.py`
+- [x] **Career-end click points** — Skills (122,1053), Complete Career
+      (360,1053), same mechanism. `cultivate_finish.png` still matches
+      `78_career_end.png`, so the handler fires as before.
+- [x] **Post-concert popup handler** — `CONCERT_BONUSES_UPDATED` UI in
+      `asset/ui.py` + `scan_ui_list`, `script_concert_bonuses_updated` in the
+      script dict, clicks **Close (202,834)**. Re-verified: scores 1.000 on
+      `60_post_concert_popup.png`, 0.565 on the best other capture, and it is
+      the **only** UI in `scan_ui_list` that claims that screen, so
+      `detect_ui`'s race has nothing to lose to.
 
 **Safety**
-- [ ] Verify the **Normal Career** tab is selected before Start Career!
-      (count green pixels per tab band; see the Final Confirmation section)
-- [ ] Confirm the Recreation menu dismisses — the existing code taps (5,5)
-      after pal-stage detection, which is unverified on this dialog.
-      Cancel is (360,918).
+- [x] Verify the **Normal Career** tab is selected before Start Career! —
+      `ensure_normal_career_tab()`, called from the `TITLE[33]` branch in
+      `info.py` (the branch that actually clicks Start Career! on Global) and
+      from `script_cultivate_final_check`. It counts pixels matching the
+      measured tab green (B8 G208 R135, tolerance 30) per band. On
+      `04_final_check.png`: 6004 vs 0 → Normal, no click. Generic green was
+      too loose (the main menu read 435 in the right-hand band), hence the
+      exact-colour test; with it, no other capture puts more than 14 into
+      either band. Below 500 px it reports "no tab row" and does not block the
+      click, so the real Factor Confirmation dialog is unaffected.
+- [x] Confirm the Recreation menu dismisses — `dismiss_recreation_menu()` now
+      clicks **Cancel (360,918)** on Grand Concert instead of the unverified
+      (5,5) tap. Other scenarios keep (5,5).
 
 **Shakedown**
-- [ ] Run with `bot.log.file_enabled: true` and read the log rather than
-      watching; the OCR failure modes here are silent wrong numbers, not
-      exceptions
+- [ ] **NOT DONE — this is where Phase 1 stands.** Run with
+      `bot.log.file_enabled: true` and read the log rather than watching; the
+      OCR failure modes here are silent wrong numbers, not exceptions.
+
+Watch for during the shakedown:
+- **Summer camp.** `CULTIVATE_MEDIC_SUMMER`, `CULTIVATE_RACE_SUMMER` and the
+  literal `click(68, 991)` summer trip are still the shared values — the
+  summer-camp layout was never captured, so there was nothing to branch them
+  to. Expect the summer turns to misclick and recapture then.
+- **Post-debut month parsing.** The date crops are validated pre-debut only.
+- The Recreation Cancel point, the popup Close, and the tab check are all
+  measured but none has been clicked on a live screen.
 
 Deliberate non-goals for Phase 1: no lesson buying (so the INFO auto-buy
 hazard cannot fire), no PP-aware scoring, no concert-schedule logic.

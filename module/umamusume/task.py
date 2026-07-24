@@ -147,9 +147,11 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     
     td.cultivate_result = {}
     # 剧本相关设置
+    gc_config = attachment_data.get('grand_concert_config')
     td.scenario_config = ScenarioConfig(
         ura_config = None if (attachment_data['ura_config'] is None) else UraConfig(attachment_data['ura_config']),
-        aoharu_config = None if (attachment_data['aoharu_config'] is None) else AoharuConfig(attachment_data['aoharu_config']))
+        aoharu_config = None if (attachment_data['aoharu_config'] is None) else AoharuConfig(attachment_data['aoharu_config']),
+        grand_concert_config = None if (gc_config is None) else GrandConcertConfig(gc_config))
     # 限时: 富士奇石的表演秀
     td.fujikiseki_show_mode = attachment_data['fujikiseki_show_mode']
     try:

@@ -120,3 +120,21 @@ USE_TP_DRINK_RESULT_CLOSE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINAT
 
 STORY_REWARDS_COLLECTED_CLOSE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1180), "Story Rewards Collected - Close", None)
 ESCAPE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(5, 715), "escape", None)
+
+# === Our Grand Concert ===
+# The bottom action row has four slots on this scenario (a Lessons button sits
+# between Recreation and Races, pitch 164), so the shared main-menu points land
+# in gaps or on the wrong button. The career-end row likewise gains a Lessons
+# button and shifts. All coordinates measured against docs/captures/grand_concert.
+GC_CULTIVATE_MEDIC = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(115, 1130), "Medical Room (Grand Concert)", None)
+GC_CULTIVATE_TRIP = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(279, 1130), "Outing (Grand Concert)", None)
+GC_CULTIVATE_RACE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(607, 1130), "Race (Grand Concert)", None)
+GC_CULTIVATE_FINISH_LEARN_SKILL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(122, 1053), "Cultivation Complete - Learn Skills (Grand Concert)", None)
+GC_CULTIVATE_FINISH_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1053), "Cultivation Complete - Confirm (Grand Concert)", None)
+# Post-concert "Bonuses Updated!" modal. Close, not Confirm: Confirm opens the
+# "Active Concert Bonuses" screen, which stalls the same way.
+GC_CONCERT_BONUSES_CLOSE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(202, 834), "Concert Bonuses Updated - Close", None)
+# Recreation menu Cancel, used instead of the unverified tap-outside dismissal.
+GC_RECREATION_CANCEL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 918), "Recreation - Cancel (Grand Concert)", None)
+# Final confirmation screen's career-mode tabs.
+GC_NORMAL_CAREER_TAB = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(188, 216), "Normal Career tab (Grand Concert)", None)

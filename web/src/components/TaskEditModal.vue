@@ -66,6 +66,7 @@
                     <select v-model.number="selectedScenario" class="form-control" id="selectScenario">
                       <option :value="1">URA</option>
                       <option :value="2">Unity Cup</option>
+                      <option :value="3">Our Grand Concert</option>
                     </select>
                   </div>
                 </div>
@@ -3079,7 +3080,10 @@ export default {
             "aoharuTeamNameSelection": this.aoharuTeamNameSelection,
             "spiritBurstExclusions": [...this.spiritBurstExclusions],
             "dewlorenFlowchart": this.dewlorenFlowchart
-          } : null
+          } : null,
+          // Our Grand Concert - nothing configurable in Phase 1 (no lesson buying);
+          // scenarioSkillChoice for the "Closer Together" event lands here in Phase 2
+          "grand_concert_config": this.selectedScenario === 3 ? {} : null
         }
       }
       if (this.selectedExecuteMode === 2) {
@@ -3548,6 +3552,9 @@ export default {
           spiritBurstExclusions: [...this.spiritBurstExclusions],
           dewlorenFlowchart: this.dewlorenFlowchart
         };
+      } else if (this.selectedScenario === 3) {
+        // Our Grand Concert - no settings yet, but the key marks the preset's scenario
+        preset.grand_concert_config = {};
       }
       let payload = {
         "preset": JSON.stringify(preset)

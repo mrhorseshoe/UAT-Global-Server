@@ -56,11 +56,27 @@ class AoharuConfig:
             raise IndexError("Round index out of range")
         return self.preliminary_round_selections[round_index]
     
+class GrandConcertConfig:
+    """ Our Grand Concert.
+
+    Phase 1 buys no lessons, so nothing here is required yet. The one screen
+    that genuinely needs user input is the "Closer Together" scenario skill
+    event (5 options, right answer depends on the deck); it lands here in
+    Phase 2 as scenario_skill_choice.
+    """
+
+    def __init__(self, config: dict = None):
+        pass
+
+
 class ScenarioConfig:
     """ Configuration for all scenarios """
     ura_config: UraConfig = None
     aoharu_config: AoharuConfig = None
-    
-    def __init__(self, ura_config: UraConfig = None, aoharu_config: AoharuConfig = None):
+    grand_concert_config: GrandConcertConfig = None
+
+    def __init__(self, ura_config: UraConfig = None, aoharu_config: AoharuConfig = None,
+                 grand_concert_config: GrandConcertConfig = None):
         self.ura_config = ura_config
         self.aoharu_config = aoharu_config
+        self.grand_concert_config = grand_concert_config

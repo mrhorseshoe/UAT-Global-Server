@@ -10,6 +10,7 @@ from module.umamusume.context import build_context
 from module.umamusume.hook import after_hook, before_hook
 from module.umamusume.script.cultivate_task.cultivate import *
 from module.umamusume.script.cultivate_task.info import script_info
+from module.umamusume.script.cultivate_task.grand_concert import script_concert_bonuses_updated
 from module.umamusume.protocol.preset import AddPresetRequest, DeletePresetRequest
 from module.umamusume.task import UmamusumeTaskType, build_task
 from module.umamusume.user_data import read_presets, write_preset, delete_preset_by_name
@@ -68,7 +69,9 @@ script_dicts: Dict[UmamusumeTaskType, dict] = {
         ACTIVITY_RESULT: script_cultivate_result,
         ACTIVITY_REWARD: script_cultivate_result,
         FUJIKISEKI_SHOW_MODE_RESULT_1: script_fujikiseki_show_result_1,
-        FUJIKISEKI_SHOW_MODE_RESULT_2: script_fujikiseki_show_result_2
+        FUJIKISEKI_SHOW_MODE_RESULT_2: script_fujikiseki_show_result_2,
+        # Our Grand Concert
+        CONCERT_BONUSES_UPDATED: script_concert_bonuses_updated
     }
 }
 

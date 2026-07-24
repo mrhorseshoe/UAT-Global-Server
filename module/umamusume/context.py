@@ -1,5 +1,5 @@
 from bot.base.context import BotContext
-from module.umamusume.scenario import base_scenario, ura_scenario, aoharuhai_scenario
+from module.umamusume.scenario import base_scenario, ura_scenario, aoharuhai_scenario, grand_concert_scenario
 from module.umamusume.task import UmamusumeTask, UmamusumeTaskType
 from module.umamusume.define import *
 from module.umamusume.types import TurnInfo
@@ -112,6 +112,8 @@ def build_context(task: UmamusumeTask, ctrl) -> UmamusumeContext:
                 detail.scenario = ura_scenario.URAScenario()
             case ScenarioType.SCENARIO_TYPE_AOHARUHAI:
                 detail.scenario = aoharuhai_scenario.AoharuHaiScenario()
+            case ScenarioType.SCENARIO_TYPE_GRAND_CONCERT:
+                detail.scenario = grand_concert_scenario.GrandConcertScenario()
             case _: # Placeholder, actually impossible to reach here
                 log.error("Unknown scenario")
                 detail.scenario = None

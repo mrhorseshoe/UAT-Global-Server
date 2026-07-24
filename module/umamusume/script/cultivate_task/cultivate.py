@@ -12,6 +12,9 @@ from module.umamusume.types import TurnInfo, TurnOperationType, TurnOperation
 from module.umamusume.script.cultivate_task.const import SKILL_LEARN_PRIORITY_LIST
 from module.umamusume.script.cultivate_task.event.manifest import get_event_choice
 from module.umamusume.script.cultivate_task.parse import *
+from module.umamusume.script.cultivate_task.grand_concert import (
+    gc_point, dismiss_recreation_menu, ensure_normal_career_tab,
+    script_concert_bonuses_updated)
 from module.umamusume.asset.template import *
 
 log = logger.get_logger(__name__)
@@ -132,7 +135,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
             
             if need_detection:
                 log.info("🔍 Opening recreation menu to detect stage")
-                ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
                 time.sleep(0.5)
                 img = ctx.ctrl.get_screen()
                 
@@ -172,7 +175,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
                 else:
                     log.error("boi what the hell")
 
-                ctx.ctrl.click(5, 5)
+                dismiss_recreation_menu(ctx)
                 time.sleep(0.3)
                 ctx.cultivate_detail.turn_info.parse_main_menu_finish = False
                 return
@@ -215,7 +218,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
 
     if turn_operation is not None and turn_operation.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_REST:
         if should_use_pal_outing_simple(ctx):
-            ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
         else:
             ctx.ctrl.click_by_point(CULTIVATE_REST)
         return
@@ -226,7 +229,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
         if 36 < ctx.cultivate_detail.turn_info.date <= 40 or 60 < ctx.cultivate_detail.turn_info.date <= 64:
             ctx.ctrl.click(68, 991, "Summer Camp")
         else:
-            ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
         return
 
     if not ctx.cultivate_detail.turn_info.parse_train_info_finish:
@@ -241,7 +244,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
             return
         if energy <= limit:
             if should_use_pal_outing_simple(ctx):
-                ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
             else:
                 ctx.ctrl.click_by_point(CULTIVATE_REST)
             return
@@ -255,14 +258,14 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
             ctx.ctrl.click_by_point(TO_TRAINING_SELECT)
         elif turn_operation.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_REST:
             if should_use_pal_outing_simple(ctx):
-                ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
             else:
                 ctx.ctrl.click_by_point(CULTIVATE_REST)
         elif turn_operation.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_MEDIC:
             if 36 < ctx.cultivate_detail.turn_info.date <= 40 or 60 < ctx.cultivate_detail.turn_info.date <= 64:
                 ctx.ctrl.click_by_point(CULTIVATE_MEDIC_SUMMER)
             else:
-                ctx.ctrl.click_by_point(CULTIVATE_MEDIC)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_MEDIC))
             time.sleep(0.5)
             img = ctx.ctrl.get_screen()
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -275,7 +278,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
             if 36 < ctx.cultivate_detail.turn_info.date <= 40 or 60 < ctx.cultivate_detail.turn_info.date <= 64:
                 ctx.ctrl.click(68, 991, "Summer Camp")
             else:
-                ctx.ctrl.click_by_point(CULTIVATE_TRIP)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_TRIP))
         elif turn_operation.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_RACE:
             # Check if this is a URA race operation
             race_id = turn_operation.race_id
@@ -314,7 +317,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
                     if 36 < ctx.cultivate_detail.turn_info.date <= 40 or 60 < ctx.cultivate_detail.turn_info.date <= 64:
                         ctx.ctrl.click_by_point(CULTIVATE_RACE_SUMMER)
                     else:
-                        ctx.ctrl.click_by_point(CULTIVATE_RACE)
+                        ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_RACE))
                 else:
                     log.info(f"⏳ URA {ura_phase} not yet available - continuing with normal flow")
                     # Continue with normal flow - let AI decide what to do next
@@ -350,7 +353,7 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
                 if 36 < ctx.cultivate_detail.turn_info.date <= 40 or 60 < ctx.cultivate_detail.turn_info.date <= 64:
                     ctx.ctrl.click_by_point(CULTIVATE_RACE_SUMMER)
                 else:
-                    ctx.ctrl.click_by_point(CULTIVATE_RACE)
+                    ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_RACE))
 
 
 # === Dewloren flowchart (community Unity Cup strategy) ===
@@ -1263,6 +1266,11 @@ def script_follow_support_card_select(ctx: UmamusumeContext):
 
 
 def script_cultivate_final_check(ctx: UmamusumeContext):
+    # Dead on Global (UI_CULTIVATE_FINAL_CHECK is the Chinese 最终确认 and never
+    # matches there; the screen resolves to INFO instead), but if it ever does
+    # fire, the Grand Concert career-mode tabs still have to be checked first.
+    if ensure_normal_career_tab(ctx, ctx.current_screen):
+        return
     ctx.ctrl.click_by_point(CULTIVATE_FINAL_CHECK_START)
 
 
@@ -1696,24 +1704,24 @@ def script_cultivate_finish(ctx: UmamusumeContext):
             ctx.cultivate_detail.final_skill_sweep_active = True
             ctx.cultivate_detail.learn_skill_done = False
             ctx.cultivate_detail.learn_skill_selected = False
-            ctx.ctrl.click_by_point(CULTIVATE_FINISH_LEARN_SKILL)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_LEARN_SKILL))
             return
         if getattr(ctx.cultivate_detail, "final_skill_sweep_active", False):
             if ctx.cultivate_detail.learn_skill_selected:
                 ctx.cultivate_detail.learn_skill_done = False
                 ctx.cultivate_detail.learn_skill_selected = False
-                ctx.ctrl.click_by_point(CULTIVATE_FINISH_LEARN_SKILL)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_LEARN_SKILL))
                 return
             else:
                 ctx.cultivate_detail.final_skill_sweep_active = False
-                ctx.ctrl.click_by_point(CULTIVATE_FINISH_CONFIRM)
+                ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_CONFIRM))
                 return
     if not ctx.task.detail.manual_purchase_at_end:
         if not ctx.cultivate_detail.learn_skill_done or not ctx.cultivate_detail.cultivate_finish:
             ctx.cultivate_detail.cultivate_finish = True
-            ctx.ctrl.click_by_point(CULTIVATE_FINISH_LEARN_SKILL)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_LEARN_SKILL))
         else:
-            ctx.ctrl.click_by_point(CULTIVATE_FINISH_CONFIRM)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_CONFIRM))
     else:
         # Manual purchase mode - show notification and wait for user
         if not ctx.cultivate_detail.manual_purchase_completed:
@@ -1803,7 +1811,7 @@ def script_cultivate_finish(ctx: UmamusumeContext):
             log.info("✅ User completed manual skill purchase - proceeding with cultivation finish")
             ctx.cultivate_detail.learn_skill_done = True
             ctx.cultivate_detail.cultivate_finish = True
-            ctx.ctrl.click_by_point(CULTIVATE_FINISH_CONFIRM)
+            ctx.ctrl.click_by_point(gc_point(ctx, CULTIVATE_FINISH_CONFIRM))
 
 
 def script_cultivate_learn_skill(ctx: UmamusumeContext):
