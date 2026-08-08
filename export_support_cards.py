@@ -46,6 +46,9 @@ TYPE_BY_COMMAND = {101: "speed", 102: "power", 103: "guts", 105: "stamina", 106:
 TYPE_BY_CARD_TYPE = {2: "friend", 3: "group"}
 RARITY = {1: "R", 2: "SR", 3: "SSR"}
 RARITY_ORDER = {"SSR": 0, "SR": 1, "R": 2}
+# SSR only: borrowing a non-SSR is rare enough that listing R and SR cards just
+# buries the useful ones. Widen this to ("SSR", "SR", "R") to export everything.
+EXPORT_RARITIES = ("SSR",)
 
 QUERY = ('SELECT s.id, t76.text, t77.text, s.command_id, s.rarity, s.support_card_type '
          'FROM support_card_data s '
@@ -60,6 +63,8 @@ def read_cards(db_path):
     try:
         cards = []
         for card_id, title, chara, command_id, rarity, card_type in con.execute(QUERY):
+            if RARITY.get(rarity) not in EXPORT_RARITIES:
+                continue
             name = title.strip()
             if name.startswith("[") and name.endswith("]"):
                 name = name[1:-1]
