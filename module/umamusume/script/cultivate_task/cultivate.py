@@ -446,6 +446,51 @@ def dewloren_decide(date, energy, mood, medic_available, values, bond_counts,
     return (TurnOperationType.TURN_OPERATION_TYPE_TRAINING, 4)
 
 
+# Some events leave every training lane but one disabled. Clicking a disabled
+# lane does nothing and the screen never changes, so without this the same dead
+# lane gets clicked until the repetitive-click guard restarts the app - which
+# lands on the same locked turn again. Each visit to this screen with a training
+# operation still queued means the previous click did not take (a click that
+# works leaves the screen), so after this many visits the lane is treated as
+# disabled and the remaining lanes are swept.
+TRAINING_CLICK_RETRY_LIMIT = 3
+
+
+def training_click_lane(ctx: UmamusumeContext, turn_op) -> int | None:
+    """Pick the training lane to click this visit.
+
+    Returns the lane index to click, or None when every lane has refused and
+    training should be abandoned for this turn.
+    """
+    turn_info = ctx.cultivate_detail.turn_info
+    lane = turn_op.training_type.value - 1
+
+    tried = getattr(turn_info, 'training_lanes_tried', None)
+    if tried is None:
+        tried = turn_info.training_lanes_tried = []
+    if getattr(turn_info, 'training_click_lane', None) != lane:
+        turn_info.training_click_lane = lane
+        turn_info.training_click_attempts = 0
+
+    turn_info.training_click_attempts += 1
+    if turn_info.training_click_attempts <= TRAINING_CLICK_RETRY_LIMIT:
+        return lane
+
+    if lane not in tried:
+        tried.append(lane)
+    next_lane = next((i for i in range(len(TRAINING_POINT_LIST)) if i not in tried), None)
+    if next_lane is None:
+        return None
+
+    log.warning(f"{TRAINING_POINT_LIST[lane].desc} is not responding (likely disabled this turn) - "
+                f"trying {TRAINING_POINT_LIST[next_lane].desc}")
+    turn_info.training_click_lane = next_lane
+    turn_info.training_click_attempts = 1
+    # keep the operation in step so the rest of the turn reports the lane used
+    turn_op.training_type = TrainingType(next_lane + 1)
+    return next_lane
+
+
 def script_cultivate_training_select(ctx: UmamusumeContext):
     if ctx.cultivate_detail.turn_info is None:
         log.warning("Turn information not initialized")
@@ -456,10 +501,15 @@ def script_cultivate_training_select(ctx: UmamusumeContext):
 
     if turn_op is not None:
         if turn_op.turn_operation_type == TurnOperationType.TURN_OPERATION_TYPE_TRAINING:
-            training_type = turn_op.training_type
-            ctx.ctrl.click_by_point(TRAINING_POINT_LIST[training_type.value - 1])
+            lane = training_click_lane(ctx, turn_op)
+            if lane is None:
+                log.error("No training lane responded - resting this turn instead")
+                turn_op.turn_operation_type = TurnOperationType.TURN_OPERATION_TYPE_REST
+                ctx.ctrl.click_by_point(RETURN_TO_CULTIVATE_MAIN_MENU)
+                return
+            ctx.ctrl.click_by_point(TRAINING_POINT_LIST[lane])
             time.sleep(0.35)
-            ctx.ctrl.click_by_point(TRAINING_POINT_LIST[training_type.value - 1])
+            ctx.ctrl.click_by_point(TRAINING_POINT_LIST[lane])
             time.sleep(1.5)
             return
 

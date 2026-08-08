@@ -6,6 +6,7 @@
 - **Skill presets**: the same New/Override/Delete/Apply actions in the Skills section, recording the full configuration (selected skills, priority buckets, blacklist, thresholds and toggles).
 - **Buy skills only post-career**: optional toggle that suppresses mid-career skill buying so points accumulate for the end-of-career sweep.
 - **Spark reroll flexibility**: each desired spark now carries its own minimum star count, plus an AND/OR toggle between the blue and pink groups (AND requires a hit in both).
+- **Disabled training lane failsafe**: some events leave every training but one locked. The bot used to click the lane it picked forever; it now treats a lane that does not respond after three visits as disabled and sweeps the remaining lanes, resting only if every lane refuses.
 - **Engine fixes**: stale UI-detection results could leak between frames and run the previous screen's handler; `Executor.stop()` never actually purged caches (unimported name); a startup race could leave the scheduler unable to start tasks after the post-run restart; the scheduler loop is now guarded so one bad task cannot kill the thread.
 
 ## 16/07/2026
