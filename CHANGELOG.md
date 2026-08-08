@@ -1,5 +1,13 @@
 # Changelog
 
+## 08/08/2026
+- **Borrowing Support Card menu rebuilt**: the card list is now generated from the game's own `master.mdb` (238 cards, SSR/SR/R) instead of a hardcoded list that carried untranslated and placeholder titles. Card art removed in favour of a text list, and friend/group cards are selectable for the first time. Regenerate with `export_support_cards.py` after a game update — see the README.
+- **Race schedule presets**: save, apply, override and delete named race lists from the Race Options panel. Triple Crown, Triple Tiara, Triple Crown Dirt and Triple Tiara Dirt ship with the repo; your own presets live in `userdata/`.
+- **Skill presets**: the same New/Override/Delete/Apply actions in the Skills section, recording the full configuration (selected skills, priority buckets, blacklist, thresholds and toggles).
+- **Buy skills only post-career**: optional toggle that suppresses mid-career skill buying so points accumulate for the end-of-career sweep.
+- **Spark reroll flexibility**: each desired spark now carries its own minimum star count, plus an AND/OR toggle between the blue and pink groups (AND requires a hit in both).
+- **Engine fixes**: stale UI-detection results could leak between frames and run the previous screen's handler; `Executor.stop()` never actually purged caches (unimported name); a startup race could leave the scheduler unable to start tasks after the post-run restart; the scheduler loop is now guarded so one bad task cannot kill the thread.
+
 ## 16/07/2026
 - **Automated spark reroll**: new tickbox plus a Spark Reroll Options popup (desired blue/pink sparks and a minimum star count). The bot rerolls when no desired spark is present and picks the better set on the Spark Selection screen; if neither set qualifies it keeps the one with more white sparks.
 - **Spark reroll carats option**: optional toggle to spend a TP item/carats to restore TP when a career ends with too little to afford a reroll (default off keeps the original sparks). Also fixed the bot getting stuck on the "Restore TP?" prompt when short on TP.

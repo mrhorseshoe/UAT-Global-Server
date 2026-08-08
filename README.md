@@ -30,6 +30,16 @@ All changes below were added on top of the upstream project.
 4. **Add Missing Skill form** — the skill picker loads the skill database from the server at runtime, and a webform adds new skills (with the Evolved rarity) without a restart.
 5. **Add Missing Event form** — the event list is runtime-loaded and shows only your overrides by default (search or toggle for the full list), with a webform to add missing events.
 
+## Maintenance scripts
+
+1. **`export_support_cards.py`** — regenerates `web/src/assets/support_cards.json`, the card list behind the Borrowing Support Card picker, from `master.mdb` (the SQLite master database the Global client stores its game data in, under `AppData\LocalLow\Cygames\Umamusume\master\`). Titles come straight from the game's own English text, which matters because the bot OCRs the card title on the borrow screen and fuzzy-matches it against the name saved in the task — a title that differs from the game's wording breaks card selection. Run it after a game update adds or renames cards, then rebuild the web UI:
+
+   ```bash
+   py -3.10 export_support_cards.py && cd web && npx vite build
+   ```
+
+   Use `--db` to read a copy of `master.mdb` from elsewhere (another PC, an emulator pull). The database is only ever opened read-only.
+
 ## Reliability and debugging
 
 1. **Unknown events click the top choice** instead of stalling the run.
