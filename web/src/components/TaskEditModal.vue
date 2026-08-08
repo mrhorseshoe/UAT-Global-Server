@@ -787,25 +787,24 @@
 
                     <div class="quick">
                       <label>Race Presets:</label>
-                      <div class="input-group input-group-sm mb-1">
-                        <select v-model="racePresetUse" class="form-control" id="race-preset-select">
-                          <option v-for="set in racePresets" :key="set.name" :value="set">
-                            {{ set.name }} ({{ (set.race_list || []).length }} races){{ set.starter ? ' — shipped' : '' }}</option>
-                        </select>
-                        <div class="input-group-append">
-                          <button type="button" class="btn btn-sm btn-outline-success"
-                            @click="applyRacePreset">Apply</button>
-                          <button type="button" class="btn btn-sm btn-outline-warning"
-                            @click="overrideRacePreset">Override Preset</button>
-                          <button type="button" class="btn btn-sm btn-outline-danger"
-                            @click="deleteRacePreset">Delete Preset</button>
-                        </div>
+                      <select v-model="racePresetUse" class="form-control form-control-sm mb-1"
+                        id="race-preset-select">
+                        <option v-for="set in racePresets" :key="set.name" :value="set">
+                          {{ set.name }} ({{ (set.race_list || []).length }} races){{ set.starter ? ' — shipped' : '' }}</option>
+                      </select>
+                      <div class="btn-group mb-1" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-success"
+                          @click="applyRacePreset">Apply</button>
+                        <button type="button" class="btn btn-sm btn-outline-warning"
+                          @click="overrideRacePreset">Override Preset</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                          @click="deleteRacePreset">Delete Preset</button>
                       </div>
                       <div class="input-group input-group-sm">
                         <input type="text" v-model="newRacePresetName" class="form-control"
                           placeholder="New preset name..." id="race-preset-name">
                         <div class="input-group-append">
-                          <button type="button" class="btn btn-sm btn-outline-primary"
+                          <button type="button" class="btn btn-sm btn-outline-success"
                             @click="newRacePreset">New Preset</button>
                         </div>
                       </div>
