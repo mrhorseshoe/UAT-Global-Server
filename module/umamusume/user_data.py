@@ -141,6 +141,33 @@ def delete_race_preset_by_name(name: str):
     return False
 
 
+skill_presets_path = "/umamusume/skill_presets"
+
+
+def read_skill_presets():
+    folder = base_path + skill_presets_path
+    preset_list = []
+    if os.path.exists(folder):
+        for file in glob.glob(os.path.join(folder, '*.json')):
+            with open(file, 'r', encoding='utf-8') as f:
+                preset_list.append(json.load(f))
+    return preset_list
+
+
+def write_skill_preset(preset_json: str):
+    preset_info = json.loads(preset_json)
+    name = preset_info['name']
+    write_file(skill_presets_path + "/" + name + ".json", preset_json)
+
+
+def delete_skill_preset_by_name(name: str):
+    filepath = os.path.join(base_path + skill_presets_path, f"{name}.json")
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return True
+    return False
+
+
 PAL_DEFAULTS: dict = {
     "5 event chain (Defaults optimized for riko)": [[4, 75, 0.27], [4, 80, 0.27], [5, 80, 0.27], [5, 80, 0.27], [5, 75, 0.27]],
     "4 event chain": [[2, 43, 0.9], [3, 17, 0.5], [1, 3, 0.8], [5, 88, 0.0]],

@@ -995,6 +995,37 @@
               <!-- Skill Learning Section -->
               <div class="form-group">
 
+                <!-- Skill Presets -->
+                <div class="form-group">
+                  <label class="form-label section-heading">
+                    <i class="fas fa-bookmark"></i>
+                    Skill Presets
+                  </label>
+                  <select v-model="skillPresetUse" class="form-control form-control-sm mb-1"
+                    id="skill-preset-select">
+                    <option v-for="set in skillPresets" :key="set.name" :value="set">
+                      {{ set.name }} ({{ (set.selected_skills || []).length }} skills, {{ (set.blacklist || []).length }} blacklisted)</option>
+                  </select>
+                  <div class="btn-group mb-1" role="group">
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                      @click="applySkillPreset">Apply</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                      @click="overrideSkillPreset">Override Preset</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm"
+                      @click="deleteSkillPreset">Delete Preset</button>
+                  </div>
+                  <div class="input-group input-group-sm">
+                    <input type="text" v-model="newSkillPresetName" class="form-control"
+                      placeholder="New preset name..." id="skill-preset-name">
+                    <div class="input-group-append">
+                      <!-- btn-outline-success: the modal's ID-scoped btn-outline-primary rule
+                           paints accent-on-accent inside input groups (invisible text) -->
+                      <button type="button" class="btn btn-sm btn-outline-success"
+                        @click="newSkillPreset">New Preset</button>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Priority 0 Section -->
                 <div class="priority-section">
                   <label class="form-label section-heading">
@@ -1964,6 +1995,9 @@ export default {
       racePresets: [],
       racePresetUse: null,
       newRacePresetName: "",
+      skillPresets: [],
+      skillPresetUse: null,
+      newSkillPresetName: "",
       skillLearnPriorityList: [
         {
           priority: 0,
@@ -2350,6 +2384,7 @@ export default {
     this.initSelect()
     this.getPresets()
     this.getRacePresets()
+    this.getSkillPresets()
     this.loadPalCardStore()
     this.successToast = $('#liveToast').toast({})
     this.$nextTick(() => {
@@ -2841,6 +2876,86 @@ export default {
     },
     clearAllRaces: function () {
       this.extraRace = [];
+    },
+    getSkillPresets: function () {
+      this.axios.post("/umamusume/get-skill-presets", "").then(
+        res => {
+          this.skillPresets = res.data
+        }
+      )
+    },
+    applySkillPreset: function () {
+      if (!this.skillPresetUse) {
+        alert('Select a preset to apply first.');
+        return;
+      }
+      const p = this.skillPresetUse;
+      this.selectedSkills = [...(p.selected_skills || [])];
+      this.skillAssignments = { ...(p.skill_assignments || {}) };
+      this.activePriorities = (p.active_priorities && p.active_priorities.length > 0)
+        ? [...p.active_priorities] : [0];
+      this.blacklistedSkills = [...(p.blacklist || [])];
+      if (p.only_user_provided !== undefined) this.learnSkillOnlyUserProvided = !!p.only_user_provided;
+      if (p.threshold !== undefined) this.learnSkillThreshold = p.threshold;
+      if (p.manual_purchase !== undefined) this.manualPurchase = !!p.manual_purchase;
+    },
+    newSkillPreset: function () {
+      const name = (this.newSkillPresetName || '').trim();
+      if (!name) {
+        alert('Enter a name for the new preset first.');
+        return;
+      }
+      if (this.skillPresets.some(p => p.name === name)) {
+        alert(`A preset named "${name}" already exists. Select it and use Override Preset instead.`);
+        return;
+      }
+      if (this.selectedSkills.length === 0 && this.blacklistedSkills.length === 0 &&
+        !confirm('No skills are selected or blacklisted. Create an empty preset?')) return;
+      this.saveSkillPreset(name);
+    },
+    overrideSkillPreset: function () {
+      if (!this.skillPresetUse) {
+        alert('Select a preset to override first.');
+        return;
+      }
+      const name = this.skillPresetUse.name;
+      if (!confirm(`Overwrite "${name}" with the current skill configuration (${this.selectedSkills.length} skills, ${this.blacklistedSkills.length} blacklisted)?`)) return;
+      this.saveSkillPreset(name);
+    },
+    saveSkillPreset: function (name) {
+      const preset = {
+        name: name,
+        selected_skills: [...this.selectedSkills],
+        skill_assignments: { ...this.skillAssignments },
+        active_priorities: [...this.activePriorities],
+        blacklist: [...this.blacklistedSkills],
+        only_user_provided: this.learnSkillOnlyUserProvided,
+        threshold: this.learnSkillThreshold,
+        manual_purchase: this.manualPurchase
+      };
+      this.axios.post("/umamusume/add-skill-preset", { preset: JSON.stringify(preset) }).then(
+        () => {
+          this.newSkillPresetName = '';
+          this.getSkillPresets();
+        }
+      ).catch(e => {
+        console.error(e)
+      })
+    },
+    deleteSkillPreset: function () {
+      if (!this.skillPresetUse) {
+        alert('Select a preset to delete first.');
+        return;
+      }
+      if (!confirm(`Delete preset "${this.skillPresetUse.name}"?`)) return;
+      this.axios.post("/umamusume/delete-skill-preset", { name: this.skillPresetUse.name }).then(
+        () => {
+          this.skillPresetUse = null;
+          this.getSkillPresets();
+        }
+      ).catch(e => {
+        console.error(e)
+      })
     },
     getRacePresets: function () {
       this.axios.post("/umamusume/get-race-presets", "").then(
