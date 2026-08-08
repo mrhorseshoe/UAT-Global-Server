@@ -16,7 +16,7 @@ from bot.conn.u2_ctrl import U2AndroidController
 from bot.recog.image_matcher import template_match, image_match
 from bot.recog.ocr import reset_ocr
 from bot.recog.timeout_tracker import check_and_reset_timeout
-from bot.base.purge import save_task_data, save_scheduler_tasks, save_scheduler_state, soft_process_restart
+from bot.base.purge import save_task_data, save_scheduler_tasks, save_scheduler_state, soft_process_restart, purge_all
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bot.base.manifest import APP_MANIFEST_LIST
 from config import CONFIG
@@ -32,7 +32,9 @@ def get_controller() -> U2AndroidController:
 
 
 class Executor:
-    active = True
+    # must default to False: the scheduler only starts tasks while the
+    # executor is inactive, and nothing else clears this flag at boot
+    active = False
 
     app_alive_check_counter = 5
     app_alive_check_interval = 5
@@ -40,7 +42,6 @@ class Executor:
     def __init__(self):
         psutil.Process().cpu_affinity(list(range(CONFIG.bot.auto.cpu_alloc)))
         self.detect_ui_results_write_lock = threading.Lock()
-        self.detect_ui_results = []
         self.executor = ThreadPoolExecutor(max_workers=CONFIG.bot.auto.cpu_alloc)
 
     def ensure_pool(self):
@@ -71,10 +72,6 @@ class Executor:
     def start(self, task):
         self.active = True
         self.ensure_pool()
-        try:
-            self.detect_ui_results.clear()
-        except Exception:
-            self.detect_ui_results = []
         self.run_work_flow(task)
 
     def stop(self):
@@ -90,30 +87,31 @@ class Executor:
         self.ensure_pool()
         if self.executor is None or getattr(self.executor, "_shutdown", False):
             return NOT_FOUND_UI
+        # results are per call: workers that outlive an early return (running
+        # futures can't be cancelled) must not leak matches into the next frame
+        results = []
         try:
-            futures = {self.executor.submit(self.detect_ui_sub, ui, target): ui for ui in ui_list}
+            futures = {self.executor.submit(self.detect_ui_sub, ui, target, results): ui for ui in ui_list}
         except RuntimeError as e:
             if "interpreter shutdown" in str(e).lower():
                 return NOT_FOUND_UI
             raise
         found = None
         for _ in as_completed(futures):
-            if len(self.detect_ui_results) > 0:
-                found = self.detect_ui_results[0]
+            if len(results) > 0:
+                found = results[0]
                 break
         if found is not None:
             self.cancel_futures(futures)
-            self.detect_ui_results = []
             return found
         for f in futures:
             try:
                 f.result()
             except Exception:
                 pass
-        self.detect_ui_results = []
         return NOT_FOUND_UI
 
-    def detect_ui_sub(self, ui: UI, target) -> None:
+    def detect_ui_sub(self, ui: UI, target, results: list) -> None:
         result = True
         for template in ui.check_exist_template_list:
             sub_target = target[
@@ -136,9 +134,8 @@ class Executor:
             else:
                 log.error("template not set match mode")
         if result is True:
-            self.detect_ui_results_write_lock.acquire()
-            self.detect_ui_results.append(ui)
-            self.detect_ui_results_write_lock.release()
+            with self.detect_ui_results_write_lock:
+                results.append(ui)
 
     def run_work_flow(self, task: Task):
         manifest = APP_MANIFEST_LIST[task.app_name]

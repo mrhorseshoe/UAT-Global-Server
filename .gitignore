@@ -141,3 +141,7 @@ brayscript/
 scripts/
 
 .agent/rules/
+
+# Local debugging captures and broken-config backups
+screenshot/
+config.yaml.broken

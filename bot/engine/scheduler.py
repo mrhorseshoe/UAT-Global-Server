@@ -2,6 +2,7 @@ import copy
 import datetime
 import threading
 import time
+import traceback
 
 import croniter
 
@@ -77,50 +78,58 @@ class Scheduler:
     def init(self):
         task_executor = executor.Executor()
         while True:
-            if self.active:
-                for task in self.task_list:
-                    if task.task_execute_mode in [TaskExecuteMode.TASK_EXECUTE_MODE_ONE_TIME,
-                                                   TaskExecuteMode.TASK_EXECUTE_MODE_TEAM_TRIALS]:
-                        if task.task_status == TaskStatus.TASK_STATUS_PENDING and not task_executor.active:
-                            self.start_executor_for(task, task_executor)
-                    elif task.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_CRON_JOB:
-                        if task.task_status == TaskStatus.TASK_STATUS_SCHEDULED:
-                            if task.cron_job_config is not None:
-                                if task.cron_job_config.next_time is None:
-                                    task.cron_job_config.next_time = self.compute_next_cron(task.cron_job_config.cron)
-                                else:
-                                    if task.cron_job_config.next_time < datetime.datetime.now():
-                                        self.copy_task(task, TaskExecuteMode.TASK_EXECUTE_MODE_ONE_TIME)
-                                        task.cron_job_config.next_time = self.compute_next_cron(task.cron_job_config.cron)
-                    elif task.task_execute_mode in [TaskExecuteMode.TASK_EXECUTE_MODE_LOOP,
-                                                    TaskExecuteMode.TASK_EXECUTE_MODE_FULL_AUTO]:
-                        if not task_executor.active:
-                            # loop_count = 0 means loop until canceled. Runs are
-                            # counted in UmamusumeTask.end_task (and per career in
-                            # script_main_menu for FULL_AUTO) because the process
-                            # soft-restarts right after each execution - this loop
-                            # may never see the finished status, so it only gates.
-                            detail = getattr(task, 'detail', None)
-                            loop_limit = getattr(detail, 'loop_count', 0) or 0
-                            loops_done = getattr(detail, 'loops_done', 0) or 0
-                            limit_reached = loop_limit > 0 and loops_done >= loop_limit
-                            if task.task_status in [TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED]:
-                                if not limit_reached:
-                                    task.task_status = TaskStatus.TASK_STATUS_PENDING
-                            elif task.task_status == TaskStatus.TASK_STATUS_PENDING and limit_reached:
-                                # restored from a restart with all requested runs done
-                                log.info("Loop task " + str(task.task_id) + " completed all "
-                                         + str(loop_limit) + " runs")
-                                task.task_status = TaskStatus.TASK_STATUS_SUCCESS
-                            if task.task_status == TaskStatus.TASK_STATUS_PENDING:
-                                self.start_executor_for(task, task_executor)
-                    else:
-                        log.warning("Unknown task type: " + str(task.task_execute_mode) + ", task_id: " + str(task.task_id))
-
-            else:
-                if task_executor.active:
-                    task_executor.stop()
+            # one bad task (e.g. an invalid cron expression) must not kill
+            # this daemon thread, or nothing gets scheduled until restart
+            try:
+                self.tick(task_executor)
+            except Exception:
+                log.error("Scheduler tick failed: " + traceback.format_exc())
             time.sleep(1)
+
+    def tick(self, task_executor):
+        if self.active:
+            for task in self.task_list:
+                if task.task_execute_mode in [TaskExecuteMode.TASK_EXECUTE_MODE_ONE_TIME,
+                                               TaskExecuteMode.TASK_EXECUTE_MODE_TEAM_TRIALS]:
+                    if task.task_status == TaskStatus.TASK_STATUS_PENDING and not task_executor.active:
+                        self.start_executor_for(task, task_executor)
+                elif task.task_execute_mode == TaskExecuteMode.TASK_EXECUTE_MODE_CRON_JOB:
+                    if task.task_status == TaskStatus.TASK_STATUS_SCHEDULED:
+                        if task.cron_job_config is not None:
+                            if task.cron_job_config.next_time is None:
+                                task.cron_job_config.next_time = self.compute_next_cron(task.cron_job_config.cron)
+                            else:
+                                if task.cron_job_config.next_time < datetime.datetime.now():
+                                    self.copy_task(task, TaskExecuteMode.TASK_EXECUTE_MODE_ONE_TIME)
+                                    task.cron_job_config.next_time = self.compute_next_cron(task.cron_job_config.cron)
+                elif task.task_execute_mode in [TaskExecuteMode.TASK_EXECUTE_MODE_LOOP,
+                                                TaskExecuteMode.TASK_EXECUTE_MODE_FULL_AUTO]:
+                    if not task_executor.active:
+                        # loop_count = 0 means loop until canceled. Runs are
+                        # counted in UmamusumeTask.end_task (and per career in
+                        # script_main_menu for FULL_AUTO) because the process
+                        # soft-restarts right after each execution - this loop
+                        # may never see the finished status, so it only gates.
+                        detail = getattr(task, 'detail', None)
+                        loop_limit = getattr(detail, 'loop_count', 0) or 0
+                        loops_done = getattr(detail, 'loops_done', 0) or 0
+                        limit_reached = loop_limit > 0 and loops_done >= loop_limit
+                        if task.task_status in [TaskStatus.TASK_STATUS_SUCCESS, TaskStatus.TASK_STATUS_FAILED]:
+                            if not limit_reached:
+                                task.task_status = TaskStatus.TASK_STATUS_PENDING
+                        elif task.task_status == TaskStatus.TASK_STATUS_PENDING and limit_reached:
+                            # restored from a restart with all requested runs done
+                            log.info("Loop task " + str(task.task_id) + " completed all "
+                                     + str(loop_limit) + " runs")
+                            task.task_status = TaskStatus.TASK_STATUS_SUCCESS
+                        if task.task_status == TaskStatus.TASK_STATUS_PENDING:
+                            self.start_executor_for(task, task_executor)
+                else:
+                    log.warning("Unknown task type: " + str(task.task_execute_mode) + ", task_id: " + str(task.task_id))
+
+        else:
+            if task_executor.active:
+                task_executor.stop()
 
     def copy_task(self, task, to_task_execute_mode: TaskExecuteMode):
         new_task = copy.deepcopy(task)
