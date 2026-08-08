@@ -785,6 +785,30 @@
                       </div>
                     </div>
 
+                    <div class="quick">
+                      <label>Race Presets:</label>
+                      <div class="input-group input-group-sm mb-1">
+                        <select v-model="racePresetUse" class="form-control" id="race-preset-select">
+                          <option v-for="set in racePresets" :key="set.name" :value="set">
+                            {{ set.name }} ({{ (set.race_list || []).length }} races)</option>
+                        </select>
+                        <div class="input-group-append">
+                          <button type="button" class="btn btn-sm btn-outline-success"
+                            @click="applyRacePreset">Apply</button>
+                          <button type="button" class="btn btn-sm btn-outline-danger"
+                            @click="deleteRacePreset">Delete</button>
+                        </div>
+                      </div>
+                      <div class="input-group input-group-sm">
+                        <input type="text" v-model="newRacePresetName" class="form-control"
+                          placeholder="Preset name..." id="race-preset-name">
+                        <div class="input-group-append">
+                          <button type="button" class="btn btn-sm btn-outline-primary"
+                            @click="saveRacePreset">Save Current</button>
+                        </div>
+                      </div>
+                    </div>
+
                     <div class="filter">
                       <label>Grade:</label>
                       <div class="btn-group btn-group-sm d-flex" role="group">
@@ -1936,6 +1960,9 @@ export default {
       selectedUmamusumeTaskType: undefined,
       selectedSupportCard: undefined,
       extraRace: [],
+      racePresets: [],
+      racePresetUse: null,
+      newRacePresetName: "",
       skillLearnPriorityList: [
         {
           priority: 0,
@@ -2321,6 +2348,7 @@ export default {
     this.loadSkillData()
     this.initSelect()
     this.getPresets()
+    this.getRacePresets()
     this.loadPalCardStore()
     this.successToast = $('#liveToast').toast({})
     this.$nextTick(() => {
@@ -2812,6 +2840,42 @@ export default {
     },
     clearAllRaces: function () {
       this.extraRace = [];
+    },
+    getRacePresets: function () {
+      this.axios.post("/umamusume/get-race-presets", "").then(
+        res => {
+          this.racePresets = res.data
+        }
+      )
+    },
+    applyRacePreset: function () {
+      if (!this.racePresetUse) return;
+      // presets replace the current selection
+      this.extraRace = [...(this.racePresetUse.race_list || [])];
+    },
+    saveRacePreset: function () {
+      const name = (this.newRacePresetName || '').trim();
+      if (!name) return;
+      const preset = { name: name, race_list: [...this.extraRace] };
+      this.axios.post("/umamusume/add-race-preset", { preset: JSON.stringify(preset) }).then(
+        () => {
+          this.newRacePresetName = '';
+          this.getRacePresets();
+        }
+      ).catch(e => {
+        console.error(e)
+      })
+    },
+    deleteRacePreset: function () {
+      if (!this.racePresetUse) return;
+      this.axios.post("/umamusume/delete-race-preset", { name: this.racePresetUse.name }).then(
+        () => {
+          this.racePresetUse = null;
+          this.getRacePresets();
+        }
+      ).catch(e => {
+        console.error(e)
+      })
     },
     onCharacterChange: function () {
       // Smart filtering: Show custom confirmation modal when character changes

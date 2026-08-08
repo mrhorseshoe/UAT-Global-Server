@@ -101,6 +101,44 @@ def delete_preset_by_name(name: str):
         return True
     return False
 
+race_presets_path = "/umamusume/race_presets"
+# starter race presets ship with the repo; user presets in userdata shadow them by name
+starter_race_presets_folder = os.path.join("resource", "umamusume", "race_presets")
+
+
+def read_race_presets():
+    folder = base_path + race_presets_path
+    preset_list = []
+    seen_names = set()
+    if os.path.exists(folder):
+        for file in glob.glob(os.path.join(folder, '*.json')):
+            with open(file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                preset_list.append(data)
+                seen_names.add(data['name'])
+    if os.path.exists(starter_race_presets_folder):
+        for file in glob.glob(os.path.join(starter_race_presets_folder, '*.json')):
+            with open(file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data['name'] not in seen_names:
+                    preset_list.append(data)
+    return preset_list
+
+
+def write_race_preset(preset_json: str):
+    preset_info = json.loads(preset_json)
+    name = preset_info['name']
+    write_file(race_presets_path + "/" + name + ".json", preset_json)
+
+
+def delete_race_preset_by_name(name: str):
+    filepath = os.path.join(base_path + race_presets_path, f"{name}.json")
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return True
+    return False
+
+
 PAL_DEFAULTS: dict = {
     "5 event chain (Defaults optimized for riko)": [[4, 75, 0.27], [4, 80, 0.27], [5, 80, 0.27], [5, 80, 0.27], [5, 75, 0.27]],
     "4 event chain": [[2, 43, 0.9], [3, 17, 0.5], [1, 3, 0.8], [5, 88, 0.0]],

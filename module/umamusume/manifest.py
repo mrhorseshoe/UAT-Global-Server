@@ -12,7 +12,8 @@ from module.umamusume.script.cultivate_task.cultivate import *
 from module.umamusume.script.cultivate_task.info import script_info
 from module.umamusume.protocol.preset import AddPresetRequest, DeletePresetRequest
 from module.umamusume.task import UmamusumeTaskType, build_task
-from module.umamusume.user_data import read_presets, write_preset, delete_preset_by_name
+from module.umamusume.user_data import (read_presets, write_preset, delete_preset_by_name,
+                                        read_race_presets, write_race_preset, delete_race_preset_by_name)
 from module.umamusume.script.cultivate_task.event.manifest import load_events_database
 
 script_dicts: Dict[UmamusumeTaskType, dict] = {
@@ -116,6 +117,24 @@ def add_preset(req: AddPresetRequest):
 def delete_preset(req: DeletePresetRequest):
     # best-effort delete; return regardless
     delete_preset_by_name(req.name)
+    return
+
+
+@server.post("/umamusume/get-race-presets")
+def get_race_presets():
+    return read_race_presets()
+
+
+@server.post("/umamusume/add-race-preset")
+def add_race_preset(req: AddPresetRequest):
+    write_race_preset(req.preset)
+    return
+
+
+@server.post("/umamusume/delete-race-preset")
+def delete_race_preset(req: DeletePresetRequest):
+    # best-effort delete; return regardless
+    delete_race_preset_by_name(req.name)
     return
 
 
