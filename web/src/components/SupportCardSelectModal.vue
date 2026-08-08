@@ -24,6 +24,17 @@
             </button>
           </div>
           <hr class="type-btn-divider"/>
+          <div v-if="activeType !== 'custom'" class="sort-row">
+            <span class="sort-label">Sort by:</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Sort support cards">
+              <button type="button" class="btn btn-sm"
+                :class="sortBy === 'name' ? 'btn--primary' : 'btn-outline-secondary'"
+                @click="sortBy = 'name'">Card name</button>
+              <button type="button" class="btn btn-sm"
+                :class="sortBy === 'desc' ? 'btn--primary' : 'btn-outline-secondary'"
+                @click="sortBy = 'desc'">Uma Musume</button>
+            </div>
+          </div>
           <div v-if="activeType !== 'custom'" class="support-card-list mt-3">
             <div
               v-for="card in filteredSupportCardList"
@@ -32,7 +43,6 @@
               :class="{ 'selected-card': selectedCard && selectedCard.id === card.id }"
               @click="selectCard(card)"
             >
-              <span class="card-rarity" :class="'rarity-' + card.rarity.toLowerCase()">{{ card.rarity }}</span>
               <span class="card-name">{{ card.name }}</span>
               <span class="card-chara">{{ card.desc }}</span>
             </div>
@@ -77,6 +87,7 @@ export default {
         { name: 'custom', label: 'Custom' }
       ],
       activeType: 'speed',
+      sortBy: 'name', // 'name' = card title, 'desc' = uma musume
     }
   },
   computed: {
@@ -85,7 +96,11 @@ export default {
     },
     filteredSupportCardList() {
       if (this.activeType === 'custom') return [];
-      return this.umamusumeSupportCardList.filter(card => card.type === this.activeType);
+      const key = this.sortBy === 'desc' ? 'desc' : 'name';
+      return this.umamusumeSupportCardList
+        .filter(card => card.type === this.activeType)
+        // a character can have several cards of one type, so break ties on title
+        .sort((a, b) => a[key].localeCompare(b[key]) || a.name.localeCompare(b.name));
     },
   },
   watch: {
@@ -234,17 +249,15 @@ export default {
   background: rgba(255,45,163,.16);
   box-shadow: 0 0 0 1px var(--accent) inset;
 }
-.card-rarity {
-  flex: 0 0 42px;
-  text-align: center;
-  font-weight: 700;
-  font-size: .8rem;
-  border: 1px solid #9aa;
-  border-radius: 6px;
-  color: #9aa;
+.sort-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.card-rarity.rarity-ssr { color: #ffd700; border-color: #ffd700; }
-.card-rarity.rarity-sr { color: #ffa64d; border-color: #ffa64d; }
+.sort-label {
+  color: var(--muted, #bbb);
+  font-size: .9rem;
+}
 .card-name {
   font-weight: 600;
   color: #fff;
