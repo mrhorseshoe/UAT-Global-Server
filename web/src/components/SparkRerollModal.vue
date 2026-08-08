@@ -11,21 +11,45 @@
         </div>
         <div class="modal-body">
           <p class="text-muted">
-            At the end-of-career spark screen the bot keeps the roll if any checked spark appears
-            at or above the minimum stars. Otherwise it rerolls once (30 TP) and picks the rerolled
-            set if it satisfies the check; if neither set does, it keeps the set with the most white sparks.
+            At the end-of-career spark screen the bot keeps the roll if the checked sparks appear
+            at their minimum stars (combined as chosen below). Otherwise it rerolls once (30 TP) and
+            picks the rerolled set if it satisfies the check; if neither set does, it keeps the set
+            with the most white sparks.
           </p>
 
           <!-- Blue stat sparks -->
           <div class="form-group section-card p-3 mb-3">
             <h6 class="mb-2">Blue Sparks (Stats)</h6>
             <div class="d-flex flex-wrap">
-              <div class="form-check mr-4" v-for="name in blueSparks" :key="name">
+              <div class="form-check mr-4 mb-2 spark-row" v-for="name in blueSparks" :key="name">
                 <input type="checkbox" class="form-check-input" :id="'spark-' + idFor(name)"
-                  :value="name" v-model="internalTargets">
+                  :checked="name in internalTargets" @change="toggleSpark(name)">
                 <label class="form-check-label" :for="'spark-' + idFor(name)">{{ name }}</label>
+                <select v-if="name in internalTargets" v-model.number="internalTargets[name]"
+                  class="form-control form-control-sm spark-stars" :id="'spark-stars-' + idFor(name)">
+                  <option :value="1">1★+</option>
+                  <option :value="2">2★+</option>
+                  <option :value="3">3★</option>
+                </select>
               </div>
             </div>
+          </div>
+
+          <!-- AND/OR combine mode -->
+          <div class="text-center mb-3">
+            <div class="btn-group" role="group" aria-label="Combine blue and pink sparks">
+              <button type="button" class="btn btn-sm"
+                :class="internalMode === 'or' ? 'btn--primary' : 'btn-outline-secondary'"
+                @click="internalMode = 'or'">OR</button>
+              <button type="button" class="btn btn-sm"
+                :class="internalMode === 'and' ? 'btn--primary' : 'btn-outline-secondary'"
+                @click="internalMode = 'and'">AND</button>
+            </div>
+            <p class="text-muted mb-0 mt-1">
+              <b>OR</b>: any checked spark at its stars keeps the roll.
+              <b>AND</b>: needs a checked blue spark <i>and</i> a checked pink spark, each at its stars.
+              Within a group, multiple checks always mean "any of these" — an uma has only one of each.
+            </p>
           </div>
 
           <!-- Pink aptitude sparks -->
@@ -34,25 +58,19 @@
             <div class="row">
               <div class="col-md-3 col-6" v-for="group in pinkGroups" :key="group.label">
                 <div class="pink-group-label">{{ group.label }}</div>
-                <div class="form-check" v-for="name in group.sparks" :key="name">
+                <div class="form-check mb-2 spark-row" v-for="name in group.sparks" :key="name">
                   <input type="checkbox" class="form-check-input" :id="'spark-' + idFor(name)"
-                    :value="name" v-model="internalTargets">
+                    :checked="name in internalTargets" @change="toggleSpark(name)">
                   <label class="form-check-label" :for="'spark-' + idFor(name)">{{ name }}</label>
+                  <select v-if="name in internalTargets" v-model.number="internalTargets[name]"
+                    class="form-control form-control-sm spark-stars" :id="'spark-stars-' + idFor(name)">
+                    <option :value="1">1★+</option>
+                    <option :value="2">2★+</option>
+                    <option :value="3">3★</option>
+                  </select>
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- Minimum stars -->
-          <div class="form-group section-card p-3 mb-3">
-            <h6 class="mb-2">Minimum Stars</h6>
-            <p class="text-muted mb-2">A checked spark only counts as a hit at this star level or higher.</p>
-            <select v-model.number="internalMinStars" class="form-control" style="max-width: 200px;"
-              id="spark-reroll-min-stars">
-              <option :value="1">1 star</option>
-              <option :value="2">2 stars</option>
-              <option :value="3">3 stars</option>
-            </select>
           </div>
 
           <!-- Carat usage when TP is short -->
@@ -83,13 +101,14 @@ export default {
   name: 'SparkRerollModal',
   props: {
     show: Boolean,
+    // {sparkName: minStars}; a legacy flat array is normalized to 3 stars each
     targets: {
-      type: Array,
-      default: () => []
+      type: [Object, Array],
+      default: () => ({})
     },
-    minStars: {
-      type: Number,
-      default: 3
+    mode: {
+      type: String,
+      default: 'or'
     },
     useCarats: {
       type: Boolean,
@@ -105,8 +124,8 @@ export default {
         { label: 'Distance', sparks: ['Sprint', 'Mile', 'Medium', 'Long'] },
         { label: 'Style', sparks: ['Front Runner', 'Pace Chaser', 'Late Surger', 'End Closer'] },
       ],
-      internalTargets: [...this.targets],
-      internalMinStars: this.minStars,
+      internalTargets: this.normalizeTargets(this.targets),
+      internalMode: this.mode === 'and' ? 'and' : 'or',
       internalUseCarats: this.useCarats,
     };
   },
@@ -124,12 +143,12 @@ export default {
     },
     targets: {
       handler(newVal) {
-        this.internalTargets = [...newVal];
+        this.internalTargets = this.normalizeTargets(newVal);
       },
       deep: true
     },
-    minStars(newVal) {
-      this.internalMinStars = newVal;
+    mode(newVal) {
+      this.internalMode = newVal === 'and' ? 'and' : 'or';
     },
     useCarats(newVal) {
       this.internalUseCarats = newVal;
@@ -139,10 +158,25 @@ export default {
     idFor(name) {
       return name.toLowerCase().replace(/\s+/g, '-');
     },
+    normalizeTargets(t) {
+      if (Array.isArray(t)) {
+        const o = {};
+        t.forEach(n => { o[n] = 3; });
+        return o;
+      }
+      return { ...(t || {}) };
+    },
+    toggleSpark(name) {
+      if (name in this.internalTargets) {
+        delete this.internalTargets[name];
+      } else {
+        this.internalTargets[name] = 3;
+      }
+    },
     confirm() {
       this.$emit('confirm', {
-        targets: [...this.internalTargets],
-        minStars: Number(this.internalMinStars),
+        targets: { ...this.internalTargets },
+        mode: this.internalMode,
         useCarats: Boolean(this.internalUseCarats),
       });
       this.$emit('update:show', false);
@@ -203,5 +237,17 @@ export default {
 .pink-group-label {
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+.spark-row {
+  display: flex;
+  align-items: center;
+}
+
+.spark-stars {
+  width: 72px;
+  margin-left: 8px;
+  padding: 0 6px;
+  height: 28px;
 }
 </style>

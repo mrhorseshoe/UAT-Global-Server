@@ -2352,9 +2352,10 @@ def script_factor_reroll(ctx: UmamusumeContext):
         log.info(f"🎲 Spark roll 1: {_spark_rows_text(rows)}")
         targets = detail.spark_reroll_targets
         min_stars = getattr(detail, 'spark_reroll_min_stars', 3)
-        hit = spark_rows_find_match(rows, targets, min_stars)
+        mode = getattr(detail, 'spark_reroll_mode', 'or')
+        hit = spark_rows_check(rows, targets, mode, min_stars)
         if hit:
-            log.info(f"🎲 Desired spark '{hit}' present at {min_stars}+ stars - keeping this roll")
+            log.info(f"🎲 Desired spark(s) '{hit}' present at the required stars - keeping this roll")
             d.spark_reroll_phase = 'keep'
             d.spark_reroll_result = {'rerolled': False, 'chosen': 'original',
                                      'reason': f"roll 1 has {hit}"}
@@ -2438,6 +2439,7 @@ def handle_spark_selection(ctx: UmamusumeContext):
         _save_spark_debug(ctx, "selection", img)
         targets = detail.spark_reroll_targets
         min_stars = getattr(detail, 'spark_reroll_min_stars', 3)
+        mode = getattr(detail, 'spark_reroll_mode', 'or')
 
         if not _spark_selection_show_view(ctx, 'rerolled'):
             log.warning("🎲 Could not switch to the rerolled set - keeping what is shown")
@@ -2448,7 +2450,7 @@ def handle_spark_selection(ctx: UmamusumeContext):
 
         rerolled_rows = parse_spark_rows(ctx)
         log.info(f"🎲 Rerolled sparks: {_spark_rows_text(rerolled_rows)}")
-        hit = spark_rows_find_match(rerolled_rows, targets, min_stars)
+        hit = spark_rows_check(rerolled_rows, targets, mode, min_stars)
         if hit:
             choose_rerolled = True
             reason = f"rerolled set has {hit}"

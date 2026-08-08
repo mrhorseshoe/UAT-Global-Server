@@ -55,7 +55,7 @@
                   </div>
                   <span class="btn btn-sm auto-btn ml-3" v-on:click="openSparkRerollModal">Spark Reroll Options</span>
                 </div>
-                <small class="text-muted" v-if="sparkRerollEnabled && sparkRerollTargets.length === 0">
+                <small class="text-muted" v-if="sparkRerollEnabled && Object.keys(sparkRerollTargets).length === 0">
                   No desired sparks selected yet - open Spark Reroll Options and check at least one spark.
                 </small>
               </div>
@@ -1533,7 +1533,7 @@
         @confirm="handleSupportCardConfirm"></SupportCardSelectModal>
       <!-- Spark Reroll Options Modal -->
       <SparkRerollModal v-model:show="showSparkRerollModal" :targets="sparkRerollTargets"
-        :minStars="sparkRerollMinStars" :useCarats="sparkRerollUseCarats"
+        :mode="sparkRerollMode" :useCarats="sparkRerollUseCarats"
         @confirm="handleSparkRerollConfirm"></SparkRerollModal>
       <!-- Overlay layer, supports two types of modals -->
       <div v-if="showAoharuConfigModal || showSupportCardSelectModal || showUraConfigModal || showSparkRerollModal"
@@ -1990,8 +1990,8 @@ export default {
       doTeamTrials: false,
       stopAtSparkReroll: false,
       sparkRerollEnabled: false,
-      sparkRerollTargets: [],
-      sparkRerollMinStars: 3,
+      sparkRerollTargets: {}, // {sparkName: minStars}
+      sparkRerollMode: 'or',
       sparkRerollUseCarats: false,
       showSparkRerollModal: false,
       expectTimes: 0,
@@ -3191,8 +3191,8 @@ export default {
       this.showSparkRerollModal = true;
     },
     handleSparkRerollConfirm: function (data) {
-      this.sparkRerollTargets = [...data.targets];
-      this.sparkRerollMinStars = data.minStars;
+      this.sparkRerollTargets = { ...data.targets };
+      this.sparkRerollMode = data.mode === 'and' ? 'and' : 'or';
       this.sparkRerollUseCarats = Boolean(data.useCarats);
       this.showSparkRerollModal = false;
     },
@@ -3248,9 +3248,9 @@ export default {
           "stop_at_spark_reroll": (this.selectedExecuteMode === 6 && this.loopCount === 1 && !this.doTeamTrials) ? this.stopAtSparkReroll : false,
           // automated spark reroll: only in loop mode without team trials, and
           // only when at least one desired spark is checked
-          "spark_reroll_enabled": (this.selectedExecuteMode === 6 && !this.doTeamTrials && this.sparkRerollTargets.length > 0) ? this.sparkRerollEnabled : false,
+          "spark_reroll_enabled": (this.selectedExecuteMode === 6 && !this.doTeamTrials && Object.keys(this.sparkRerollTargets).length > 0) ? this.sparkRerollEnabled : false,
           "spark_reroll_targets": this.sparkRerollTargets,
-          "spark_reroll_min_stars": this.sparkRerollMinStars,
+          "spark_reroll_mode": this.sparkRerollMode,
           "spark_reroll_use_carats": this.sparkRerollUseCarats,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],

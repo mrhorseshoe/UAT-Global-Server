@@ -1458,14 +1458,46 @@ def find_green_button(origin_img, x1: int, y1: int, x2: int, y2: int):
     return x1 + best[1], y1 + best[2]
 
 
-def spark_rows_find_match(rows: list[dict], targets: list[str], min_stars: int) -> str:
-    """Return the first desired spark present at min_stars or above, or ''."""
-    target_set = {t.strip().lower() for t in targets if t and t.strip()}
+SPARK_BLUE_NAMES = {'speed', 'stamina', 'power', 'guts', 'wit'}
+
+
+def spark_rows_check(rows: list[dict], targets, mode: str = 'or', default_min_stars: int = 3) -> str:
+    """Check parsed spark rows against the desired sparks.
+
+    targets is a dict {spark_name: min_stars}; a legacy flat list means
+    default_min_stars for every entry. An uma has one blue and one pink spark,
+    so within each group any desired spark counts (implicit OR). mode 'and'
+    additionally requires a hit in BOTH groups when both have desired sparks;
+    'or' needs a hit in either. Returns a description of the match, or ''.
+    """
+    if isinstance(targets, list):
+        targets = {t: default_min_stars for t in targets}
+    norm = {}
+    for k, v in (targets or {}).items():
+        name = str(k).strip().lower()
+        if name:
+            try:
+                norm[name] = min(3, max(1, int(v)))
+            except Exception:
+                norm[name] = default_min_stars
+    if not norm:
+        return ''
+    blue_hit = ''
+    pink_hit = ''
     for row in rows:
-        if row['canonical'] and row['canonical'].lower() in target_set \
-                and row['stars'] >= min_stars:
-            return row['canonical']
-    return ''
+        name = (row.get('canonical') or '').lower()
+        if name in norm and row.get('stars', 0) >= norm[name]:
+            if name in SPARK_BLUE_NAMES:
+                blue_hit = blue_hit or row['canonical']
+            else:
+                pink_hit = pink_hit or row['canonical']
+    blue_wanted = any(n in SPARK_BLUE_NAMES for n in norm)
+    pink_wanted = any(n not in SPARK_BLUE_NAMES for n in norm)
+    if mode == 'and' and blue_wanted and pink_wanted:
+        if blue_hit and pink_hit:
+            return blue_hit + ' + ' + pink_hit
+        return ''
+    return blue_hit or pink_hit
 
 
 def preprocess_wiki_image_for_ingame_matching(template_img):

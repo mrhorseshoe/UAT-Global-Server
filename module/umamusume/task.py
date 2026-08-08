@@ -49,10 +49,13 @@ class TaskDetail:
     loops_done: int
     # stop at the end-of-run spark reroll screen (single-run loop sessions only)
     stop_at_spark_reroll: bool
-    # automated spark reroll: reroll (30 TP) unless a desired blue/pink spark
-    # is present at spark_reroll_min_stars or above
+    # automated spark reroll: reroll (30 TP) unless the desired sparks are
+    # present. spark_reroll_targets maps spark name -> its own minimum stars;
+    # spark_reroll_mode 'and' requires a hit in both the blue and pink groups,
+    # 'or' in either. spark_reroll_min_stars only backs legacy list targets.
     spark_reroll_enabled: bool
-    spark_reroll_targets: list[str]
+    spark_reroll_targets: dict[str, int]
+    spark_reroll_mode: str
     spark_reroll_min_stars: int
     # spend carats to restore TP when a reroll can't be afforded
     spark_reroll_use_carats: bool
@@ -172,12 +175,24 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.loops_done = int(attachment_data.get('loops_done', 0) or 0)
     td.stop_at_spark_reroll = bool(attachment_data.get('stop_at_spark_reroll', False))
     td.spark_reroll_enabled = bool(attachment_data.get('spark_reroll_enabled', False))
-    targets = attachment_data.get('spark_reroll_targets', [])
-    td.spark_reroll_targets = [str(t) for t in targets] if isinstance(targets, list) else []
     try:
         td.spark_reroll_min_stars = min(3, max(1, int(attachment_data.get('spark_reroll_min_stars', 3))))
     except Exception:
         td.spark_reroll_min_stars = 3
+    targets = attachment_data.get('spark_reroll_targets', {})
+    if isinstance(targets, dict):
+        td.spark_reroll_targets = {}
+        for k, v in targets.items():
+            try:
+                td.spark_reroll_targets[str(k)] = min(3, max(1, int(v)))
+            except Exception:
+                td.spark_reroll_targets[str(k)] = td.spark_reroll_min_stars
+    elif isinstance(targets, list):
+        # legacy payloads: flat list with one global minimum star count
+        td.spark_reroll_targets = {str(t): td.spark_reroll_min_stars for t in targets}
+    else:
+        td.spark_reroll_targets = {}
+    td.spark_reroll_mode = 'and' if attachment_data.get('spark_reroll_mode') == 'and' else 'or'
     td.spark_reroll_use_carats = bool(attachment_data.get('spark_reroll_use_carats', False))
 
     ut.detail = td
