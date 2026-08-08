@@ -1975,7 +1975,7 @@ export default {
         skill_priority_list: [],
         skill_blacklist: "",
         expect_attribute: [9999, 9999, 9999, 9999, 9999],
-        follow_support_card: { id: 10001, name: 'Beyond This Shining Moment', desc: 'Silence Suzuka' },
+        follow_support_card: { id: 30002, name: 'Beyond This Shining Moment', desc: 'Silence Suzuka', type: 'speed', rarity: 'SSR' },
         follow_support_card_level: 50,
         clock_use_limit: 99,
         learn_skill_threshold: 888,
@@ -2831,7 +2831,7 @@ export default {
       )
     },
     initSelect: function () {
-      this.selectedSupportCard = { id: 10001, name: 'Beyond This Shining Moment', desc: 'Silence Suzuka' }
+      this.selectedSupportCard = { id: 30002, name: 'Beyond This Shining Moment', desc: 'Silence Suzuka', type: 'speed', rarity: 'SSR' }
       this.selectedUmamusumeTaskType = this.umamusumeTaskTypeList[0]
     },
     switchRaceList: function () {
@@ -3856,12 +3856,16 @@ export default {
     },
     renderSupportCardText(card) {
       if (!card) return '';
-      let type = '';
-      if (card.id >= 10000 && card.id < 20000) type = 'Speed';
-      else if (card.id >= 20000 && card.id < 30000) type = 'Stamina';
-      else if (card.id >= 30000 && card.id < 40000) type = 'Power';
-      else if (card.id >= 40000 && card.id < 50000) type = 'Guts';
-      else if (card.id >= 50000 && card.id < 60000) type = 'Wit';
+      const typeNames = { speed: 'Speed', stamina: 'Stamina', power: 'Power', guts: 'Guts', wit: 'Wit', friend: 'Friend' };
+      let type = card.type ? (typeNames[card.type] || '') : '';
+      // legacy presets carry cards from the old hardcoded list with range-coded ids
+      if (!type && typeof card.id === 'number') {
+        if (card.id >= 10000 && card.id < 20000) type = 'Speed';
+        else if (card.id >= 20000 && card.id < 30000) type = 'Stamina';
+        else if (card.id >= 30000 && card.id < 40000) type = 'Power';
+        else if (card.id >= 40000 && card.id < 50000) type = 'Guts';
+        else if (card.id >= 50000 && card.id < 60000) type = 'Wit';
+      }
       if (type) {
         return `【${card.name}】${type}·${card.desc}`;
       } else {
