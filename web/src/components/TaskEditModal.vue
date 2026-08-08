@@ -3856,7 +3856,7 @@ export default {
     },
     renderSupportCardText(card) {
       if (!card) return '';
-      const typeNames = { speed: 'Speed', stamina: 'Stamina', power: 'Power', guts: 'Guts', wit: 'Wit', friend: 'Friend' };
+      const typeNames = { speed: 'Speed', stamina: 'Stamina', power: 'Power', guts: 'Guts', wit: 'Wit', friend: 'Friend', group: 'Group' };
       let type = card.type ? (typeNames[card.type] || '') : '';
       // legacy presets carry cards from the old hardcoded list with range-coded ids
       if (!type && typeof card.id === 'number') {

@@ -185,7 +185,7 @@
   "id": 30067,
   "name": "Esteemed and Adored",
   "desc": "Heirs to the Throne",
-  "type": "friend",
+  "type": "group",
   "rarity": "SSR"
  },
  {
@@ -444,7 +444,7 @@
   "id": 30081,
   "name": "Passing the Dream On",
   "desc": "Team Sirius",
-  "type": "friend",
+  "type": "group",
   "rarity": "SSR"
  },
  {

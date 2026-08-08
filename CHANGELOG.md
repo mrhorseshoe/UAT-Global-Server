@@ -1,7 +1,7 @@
 # Changelog
 
 ## 08/08/2026
-- **Borrowing Support Card menu rebuilt**: the card list is now generated from the game's own `master.mdb` (238 cards, SSR/SR/R) instead of a hardcoded list that carried untranslated and placeholder titles. Card art removed in favour of a text list, and friend/group cards are selectable for the first time. Regenerate with `export_support_cards.py` after a game update — see the README.
+- **Borrowing Support Card menu rebuilt**: the card list is now generated from the game's own `master.mdb` (238 cards, SSR/SR/R) instead of a hardcoded list that carried untranslated and placeholder titles. Card art removed in favour of a text list, and new Friend and Group tabs make those cards selectable for the first time. Regenerate with `export_support_cards.py` after a game update — see the README.
 - **Race schedule presets**: save, apply, override and delete named race lists from the Race Options panel. Triple Crown, Triple Tiara, Triple Crown Dirt and Triple Tiara Dirt ship with the repo; your own presets live in `userdata/`.
 - **Skill presets**: the same New/Override/Delete/Apply actions in the Skills section, recording the full configuration (selected skills, priority buckets, blacklist, thresholds and toggles).
 - **Buy skills only post-career**: optional toggle that suppresses mid-career skill buying so points accumulate for the end-of-career sweep.

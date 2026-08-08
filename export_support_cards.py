@@ -24,8 +24,9 @@ Schema notes (master.mdb, Global client):
                      id, category 76 holds the bracketed title and category 77
                      the character name (category 75 is the two joined)
 
-Friend and group cards (support_card_type 2 and 3) both have command_id 0 and
-are exported as type "friend" - the picker lists them in one Friend tab.
+Friend and group cards both have command_id 0 because they train nothing;
+support_card_type tells them apart (2 = friend, 3 = group) and they get their
+own tabs in the picker.
 """
 import argparse
 import json
@@ -39,12 +40,14 @@ DEFAULT_OUT = os.path.join("web", "src", "assets", "support_cards.json")
 # command_id -> training type. 101/102/105/106 confirmed against known Global
 # cards (Fire at My Heels, Wild Rider, Piece of Mind, Wave of Gratitude);
 # 103 is guts by elimination and matches the known guts roster (BNWinner!,
-# Fairest Fleur). 0 is used by friend and group cards, which train nothing.
-TYPE_BY_COMMAND = {101: "speed", 102: "power", 103: "guts", 105: "stamina", 106: "wit", 0: "friend"}
+# Fairest Fleur). 0 is used by friend and group cards, which train nothing -
+# those are typed from support_card_type instead.
+TYPE_BY_COMMAND = {101: "speed", 102: "power", 103: "guts", 105: "stamina", 106: "wit"}
+TYPE_BY_CARD_TYPE = {2: "friend", 3: "group"}
 RARITY = {1: "R", 2: "SR", 3: "SSR"}
 RARITY_ORDER = {"SSR": 0, "SR": 1, "R": 2}
 
-QUERY = ('SELECT s.id, t76.text, t77.text, s.command_id, s.rarity '
+QUERY = ('SELECT s.id, t76.text, t77.text, s.command_id, s.rarity, s.support_card_type '
          'FROM support_card_data s '
          'JOIN text_data t76 ON t76.category=76 AND t76."index"=s.id '
          'JOIN text_data t77 ON t77.category=77 AND t77."index"=s.id '
@@ -56,7 +59,7 @@ def read_cards(db_path):
     con = sqlite3.connect(uri, uri=True)
     try:
         cards = []
-        for card_id, title, chara, command_id, rarity in con.execute(QUERY):
+        for card_id, title, chara, command_id, rarity, card_type in con.execute(QUERY):
             name = title.strip()
             if name.startswith("[") and name.endswith("]"):
                 name = name[1:-1]
@@ -64,7 +67,7 @@ def read_cards(db_path):
                 "id": card_id,
                 "name": name,
                 "desc": chara.strip(),
-                "type": TYPE_BY_COMMAND.get(command_id, "friend"),
+                "type": TYPE_BY_COMMAND.get(command_id) or TYPE_BY_CARD_TYPE.get(card_type, "friend"),
                 "rarity": RARITY.get(rarity, "?"),
             })
     finally:

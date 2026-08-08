@@ -73,6 +73,7 @@ export default {
         { name: 'guts', label: 'Guts' },
         { name: 'wit', label: 'Wit' },
         { name: 'friend', label: 'Friend' },
+        { name: 'group', label: 'Group' },
         { name: 'custom', label: 'Custom' }
       ],
       activeType: 'speed',
