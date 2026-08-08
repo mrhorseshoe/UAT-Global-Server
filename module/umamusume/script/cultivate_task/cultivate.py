@@ -192,8 +192,11 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
         ctx.cultivate_detail.reset_skill_learn()
 
     # Check if we should skip automatic skill learning
-    # Only skip when manual purchase is enabled AND we're at cultivate finish
-    skip_auto_skill_learning = (ctx.task.detail.manual_purchase_at_end and ctx.cultivate_detail.cultivate_finish)
+    # Skip when manual purchase is enabled AND we're at cultivate finish,
+    # or when the user forbids buying skills before the post-career sweep
+    skip_auto_skill_learning = ((ctx.task.detail.manual_purchase_at_end and ctx.cultivate_detail.cultivate_finish)
+                                or (getattr(ctx.task.detail, 'learn_skill_only_at_end', False)
+                                    and not ctx.cultivate_detail.cultivate_finish))
     
     # Debug logging
     log.debug(f"🔍 Skill learning check - Skill points: {ctx.cultivate_detail.turn_info.uma_attribute.skill_point}, Threshold: {ctx.cultivate_detail.learn_skill_threshold}")

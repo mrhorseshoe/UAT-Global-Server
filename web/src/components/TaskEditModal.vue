@@ -1331,6 +1331,15 @@
                         @click="overrideInsufficientFansForcedRaces = false">Off</button>
                     </div>
                   </div>
+                  <div class="col-md-6">
+                    <label class="d-block mb-1">Buy skills only post-career</label>
+                    <div class="token-toggle" role="group" aria-label="Buy skills only post-career">
+                      <button type="button" class="token" :class="{ active: learnSkillOnlyAtEnd }"
+                        @click="learnSkillOnlyAtEnd = true">On</button>
+                      <button type="button" class="token" :class="{ active: !learnSkillOnlyAtEnd }"
+                        @click="learnSkillOnlyAtEnd = false">Off</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2007,6 +2016,7 @@ export default {
       skillPriorityNum: 1,
       skillLearnBlacklist: "",
       learnSkillOnlyUserProvided: false,
+      learnSkillOnlyAtEnd: false,
       learnSkillBeforeRace: false,
       selectedRaceTactic1: 4,
       selectedRaceTactic2: 4,
@@ -2896,6 +2906,7 @@ export default {
         ? [...p.active_priorities] : [0];
       this.blacklistedSkills = [...(p.blacklist || [])];
       if (p.only_user_provided !== undefined) this.learnSkillOnlyUserProvided = !!p.only_user_provided;
+      if (p.only_at_end !== undefined) this.learnSkillOnlyAtEnd = !!p.only_at_end;
       if (p.threshold !== undefined) this.learnSkillThreshold = p.threshold;
       if (p.manual_purchase !== undefined) this.manualPurchase = !!p.manual_purchase;
     },
@@ -2930,6 +2941,7 @@ export default {
         active_priorities: [...this.activePriorities],
         blacklist: [...this.blacklistedSkills],
         only_user_provided: this.learnSkillOnlyUserProvided,
+        only_at_end: this.learnSkillOnlyAtEnd,
         threshold: this.learnSkillThreshold,
         manual_purchase: this.manualPurchase
       };
@@ -3259,6 +3271,7 @@ export default {
           "wit_fallback_threshold": this.witFallbackThreshold,
           "use_last_parents": this.useLastParents,
           "learn_skill_only_user_provided": this.learnSkillOnlyUserProvided,
+          "learn_skill_only_at_end": this.learnSkillOnlyAtEnd,
           "extra_weight": [this.extraWeight1, this.extraWeight2, this.extraWeight3, this.extraWeightSummer],
           "spirit_explosion": this.extraSpiritExplosion.map(v => Math.max(-1, Math.min(1, v))),
           "score_value": [
