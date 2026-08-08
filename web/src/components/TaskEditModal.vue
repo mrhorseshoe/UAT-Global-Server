@@ -790,21 +790,23 @@
                       <div class="input-group input-group-sm mb-1">
                         <select v-model="racePresetUse" class="form-control" id="race-preset-select">
                           <option v-for="set in racePresets" :key="set.name" :value="set">
-                            {{ set.name }} ({{ (set.race_list || []).length }} races)</option>
+                            {{ set.name }} ({{ (set.race_list || []).length }} races){{ set.starter ? ' — shipped' : '' }}</option>
                         </select>
                         <div class="input-group-append">
                           <button type="button" class="btn btn-sm btn-outline-success"
                             @click="applyRacePreset">Apply</button>
+                          <button type="button" class="btn btn-sm btn-outline-warning"
+                            @click="overrideRacePreset">Override Preset</button>
                           <button type="button" class="btn btn-sm btn-outline-danger"
-                            @click="deleteRacePreset">Delete</button>
+                            @click="deleteRacePreset">Delete Preset</button>
                         </div>
                       </div>
                       <div class="input-group input-group-sm">
                         <input type="text" v-model="newRacePresetName" class="form-control"
-                          placeholder="Preset name..." id="race-preset-name">
+                          placeholder="New preset name..." id="race-preset-name">
                         <div class="input-group-append">
                           <button type="button" class="btn btn-sm btn-outline-primary"
-                            @click="saveRacePreset">Save Current</button>
+                            @click="newRacePreset">New Preset</button>
                         </div>
                       </div>
                     </div>
@@ -2853,9 +2855,29 @@ export default {
       // presets replace the current selection
       this.extraRace = [...(this.racePresetUse.race_list || [])];
     },
-    saveRacePreset: function () {
+    newRacePreset: function () {
       const name = (this.newRacePresetName || '').trim();
-      if (!name) return;
+      if (!name) {
+        alert('Enter a name for the new preset first.');
+        return;
+      }
+      if (this.racePresets.some(p => p.name === name)) {
+        alert(`A preset named "${name}" already exists. Select it and use Override Preset instead.`);
+        return;
+      }
+      if (this.extraRace.length === 0 && !confirm('No races are selected. Create an empty preset?')) return;
+      this.saveRacePreset(name);
+    },
+    overrideRacePreset: function () {
+      if (!this.racePresetUse) {
+        alert('Select a preset to override first.');
+        return;
+      }
+      const name = this.racePresetUse.name;
+      if (!confirm(`Overwrite "${name}" with the ${this.extraRace.length} currently selected race(s)?`)) return;
+      this.saveRacePreset(name);
+    },
+    saveRacePreset: function (name) {
       const preset = { name: name, race_list: [...this.extraRace] };
       this.axios.post("/umamusume/add-race-preset", { preset: JSON.stringify(preset) }).then(
         () => {
@@ -2867,7 +2889,15 @@ export default {
       })
     },
     deleteRacePreset: function () {
-      if (!this.racePresetUse) return;
+      if (!this.racePresetUse) {
+        alert('Select a preset to delete first.');
+        return;
+      }
+      if (this.racePresetUse.starter) {
+        alert('Shipped presets cannot be deleted.');
+        return;
+      }
+      if (!confirm(`Delete preset "${this.racePresetUse.name}"?`)) return;
       this.axios.post("/umamusume/delete-race-preset", { name: this.racePresetUse.name }).then(
         () => {
           this.racePresetUse = null;

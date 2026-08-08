@@ -114,6 +114,7 @@ def read_race_presets():
         for file in glob.glob(os.path.join(folder, '*.json')):
             with open(file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                data['starter'] = False
                 preset_list.append(data)
                 seen_names.add(data['name'])
     if os.path.exists(starter_race_presets_folder):
@@ -121,6 +122,7 @@ def read_race_presets():
             with open(file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if data['name'] not in seen_names:
+                    data['starter'] = True
                     preset_list.append(data)
     return preset_list
 
