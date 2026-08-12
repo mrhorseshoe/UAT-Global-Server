@@ -29,6 +29,8 @@ script_dicts: Dict[UmamusumeTaskType, dict] = {
         CULTIVATE_MAIN_MENU: script_cultivate_main_menu,
         CULTIVATE_TRAINING_SELECT: script_cultivate_training_select,
         CULTIVATE_FINAL_CHECK: script_cultivate_final_check,
+        INDEPENDENT_TRAINING_WAIT: script_independent_training_wait,
+        INDEPENDENT_TRAINING_RESULTS: script_independent_training_results,
         CULTIVATE_EVENT_UMAMUSUME: script_cultivate_event,
         CULTIVATE_EVENT_SUPPORT_CARD: script_cultivate_event,
         CULTIVATE_EVENT_SCENARIO: script_cultivate_event,

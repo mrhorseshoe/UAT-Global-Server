@@ -90,8 +90,46 @@ TITLE = [
     "Items Selected", #44
     "Auto Select", #45
     "Session Error", #46
-    "areer Playthrough Difficulty Se" #47
+    "areer Playthrough Difficulty Se", #47
+    "Final Confirmation", ##career start dialog: Normal Career / Independent Training tabs # TITLE[48]
 ]
+
+
+def _final_confirmation(ctx: UmamusumeContext) -> None:
+    """Career start dialog.
+
+    Its two tabs keep whatever the user picked last, so the mode has to be
+    checked rather than assumed - otherwise a normal Career task silently
+    starts an Independent Training run, or the other way round. Everything
+    else on the dialog (Training Focus, Agenda, Prioritized Skills) is also
+    remembered from the user's own setup, so there is nothing else to set.
+    """
+    detail = getattr(ctx, 'cultivate_detail', None)
+    want_independent = bool(getattr(detail, 'independent_training', False))
+    on_independent = image_match(ctx.ctrl.get_screen(to_gray=True),
+                                 REF_INDEPENDENT_TRAINING_TAB).find_match
+    wanted_name = "Independent Training" if want_independent else "Normal Career"
+
+    if on_independent != want_independent:
+        tries = getattr(detail, 'final_confirmation_tab_tries', 0) + 1
+        if detail is not None:
+            detail.final_confirmation_tab_tries = tries
+        if tries <= 3:
+            log.info(f"Career start: switching to the {wanted_name} tab (attempt {tries})")
+            ctx.ctrl.click_by_point(FINAL_CONFIRMATION_TAB_INDEPENDENT if want_independent
+                                    else FINAL_CONFIRMATION_TAB_NORMAL)
+            time.sleep(1)
+            return
+        # Don't keep tapping: 11 identical clicks trip the guard and restart the
+        # app. Fall through and start on whatever tab the game is showing.
+        log.warning(f"Career start: could not select the {wanted_name} tab - "
+                    "starting on the tab the game is showing")
+
+    if detail is not None:
+        detail.final_confirmation_tab_tries = 0
+    log.info(f"Career start: confirming on the "
+             f"{'Independent Training' if on_independent else 'Normal Career'} tab")
+    ctx.ctrl.click_by_point(CULTIVATE_FINAL_CHECK_START)
 
 
 def _spark_reroll_recover_tp(ctx, title_pos, body_text) -> bool:
@@ -303,6 +341,9 @@ def script_info(ctx: UmamusumeContext):
             elif image_match(screen, REF_RECOVER_TP_3).find_match or\
                  image_match(screen, REF_RECOVER_TP_3_CARROT).find_match:
                 ctx.ctrl.click_by_point(USE_TP_DRINK_RESULT_CLOSE)
+        if title_text == TITLE[48]:  # Final Confirmation (career start)
+            _final_confirmation(ctx)
+            return
         if title_text == TITLE[39]: #disconnect
             ctx.ctrl.click(383, 840, "reconnect")
         if title_text == TITLE[40]:

@@ -59,6 +59,11 @@ class TaskDetail:
     spark_reroll_min_stars: int
     # spend carats to restore TP when a reroll can't be afforded
     spark_reroll_use_carats: bool
+    # Independent Training loop: start the career on the Independent Training
+    # tab of the Final Confirmation dialog instead of playing it turn by turn.
+    # The game remembers the Training Focus, Agenda and Prioritized Skills the
+    # user set by hand, so the bot only picks the tab and confirms.
+    independent_training: bool
 
 
 class EndTaskReason(Enum):
@@ -194,6 +199,7 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
         td.spark_reroll_targets = {}
     td.spark_reroll_mode = 'and' if attachment_data.get('spark_reroll_mode') == 'and' else 'or'
     td.spark_reroll_use_carats = bool(attachment_data.get('spark_reroll_use_carats', False))
+    td.independent_training = bool(attachment_data.get('independent_training', False))
 
     ut.detail = td
     return ut

@@ -1319,6 +1319,47 @@ def script_cultivate_final_check(ctx: UmamusumeContext):
     ctx.ctrl.click_by_point(CULTIVATE_FINAL_CHECK_START)
 
 
+def script_independent_training_results(ctx: UmamusumeContext):
+    """A finished Independent Training run parks on its Training Log and waits
+    there indefinitely. Dismissing it leads to the normal Complete Career
+    screen, so the rest of the end-of-run flow (skills, sparks, ratings) is
+    the existing one."""
+    log.info("Independent Training finished - closing the training log")
+    if getattr(ctx, 'cultivate_detail', None) is not None:
+        ctx.cultivate_detail.independent_training_last_log = ''
+    ctx.ctrl.click_by_point(INDEPENDENT_TRAINING_RESULTS_OK)
+    time.sleep(1)
+
+
+def script_independent_training_wait(ctx: UmamusumeContext):
+    """Independent Training plays the career out in real time (about 50
+    minutes) with the game parked on this screen, then moves to the normal
+    end-of-career screens on its own.
+
+    Nothing is clicked here on purpose: the same click every tick would trip
+    the repetitive-click guard and restart the app. The uma animation and the
+    countdown keep the screen changing, so the watchdog stays satisfied.
+    """
+    detail = getattr(ctx, 'cultivate_detail', None)
+    remaining = ''
+    try:
+        remaining = (ocr_line(ctx.current_screen[1098:1135, 300:520]) or '').strip()
+    except Exception:
+        pass
+    try:
+        from bot.base.runtime_state import update_independent_training
+        update_independent_training(remaining)
+    except Exception:
+        pass
+    # log on the minute rather than every tick
+    minute = remaining.rsplit(':', 1)[0] if ':' in remaining else remaining
+    if minute and minute != getattr(detail, 'independent_training_last_log', ''):
+        log.info(f"Independent Training in progress - {remaining}")
+        if detail is not None:
+            detail.independent_training_last_log = minute
+    time.sleep(10)
+
+
 def script_cultivate_event(ctx: UmamusumeContext):
     log.info("Event handler called")
     

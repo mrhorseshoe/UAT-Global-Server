@@ -9,6 +9,10 @@ TO_CULTIVATE_PREPARE_AUTO_SELECT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_CO
 TO_CULTIVATE_PREPARE_INCLUDE_GUEST = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(279, 694), "Cultivation Preparation - Include Guest")
 TO_CULTIVATE_PREPARE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(519, 831), "Cultivation Preparation - Confirm")
 CULTIVATE_FINAL_CHECK_START = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(500, 1185), "Start Cultivation")
+# Final Confirmation dialog tabs (Normal Career / Independent Training)
+FINAL_CONFIRMATION_TAB_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(190, 216), "Final Confirmation - Normal Career tab")
+FINAL_CONFIRMATION_TAB_INDEPENDENT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(530, 216), "Final Confirmation - Independent Training tab")
+INDEPENDENT_TRAINING_RESULTS_OK = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1178), "Independent Training Results - OK")
 TO_FOLLOW_SUPPORT_CARD_SELECT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(570, 680), "Borrow Support Card")
 FOLLOW_SUPPORT_CARD_SELECT_REFRESH = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(650, 1010), "Borrow Support Card - Refresh")
 

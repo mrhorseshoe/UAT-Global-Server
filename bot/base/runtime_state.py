@@ -15,13 +15,35 @@ _state: Dict[str, Any] = {
     "repetitive_threshold": _DEFAULT_REPETITIVE_THRESHOLD,
     "watchdog_unchanged": 0,
     "watchdog_threshold": _DEFAULT_WATCHDOG_THRESHOLD,
+    # Independent Training: the countdown read off the in-progress screen, so
+    # the web UI can explain why the bot is sitting still for ~50 minutes
+    "independent_training_remaining": "",
+    "independent_training_ts": 0.0,
     "last_update_ts": time.time()
 }
+
+# the wait handler reports once a tick; treat anything older as not running
+_INDEPENDENT_TRAINING_STALE_AFTER = 60.0
 
 
 def get_state() -> Dict[str, Any]:
     with _lock:
-        return dict(_state)
+        state = dict(_state)
+    fresh = (state.get("independent_training_remaining")
+             and (time.time() - float(state.get("independent_training_ts") or 0)
+                  < _INDEPENDENT_TRAINING_STALE_AFTER))
+    state["independent_training"] = {
+        "active": bool(fresh),
+        "remaining": state.get("independent_training_remaining", "") if fresh else "",
+    }
+    return state
+
+
+def update_independent_training(remaining: str) -> None:
+    with _lock:
+        _state["independent_training_remaining"] = str(remaining or "")
+        _state["independent_training_ts"] = time.time()
+        _state["last_update_ts"] = time.time()
 
 
 def set_thresholds(repetitive_threshold: Optional[int] = None,

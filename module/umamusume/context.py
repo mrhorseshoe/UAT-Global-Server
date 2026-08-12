@@ -1,5 +1,6 @@
 from bot.base.context import BotContext
-from module.umamusume.scenario import base_scenario, ura_scenario, aoharuhai_scenario
+from module.umamusume.scenario import (base_scenario, ura_scenario, aoharuhai_scenario,
+                                       trackblazer_scenario, grand_concert_scenario)
 from module.umamusume.task import UmamusumeTask, UmamusumeTaskType
 from module.umamusume.define import *
 from module.umamusume.types import TurnInfo
@@ -41,6 +42,7 @@ class CultivateContextDetail:
     final_skill_sweep_active: bool
     user_provided_priority: bool
     use_last_parents: bool
+    independent_training: bool
     pal_event_stage: int
     pal_name: str
     pal_friendship_score: list[float]
@@ -76,6 +78,9 @@ class CultivateContextDetail:
         self.user_provided_priority = False
         self.event_overrides = {}
         self.use_last_parents = False
+        self.independent_training = False
+        self.final_confirmation_tab_tries = 0
+        self.independent_training_last_log = ''
         self.pal_event_stage = 0
         self.pal_name = ""
         self.pal_friendship_score = [0.08, 0.057, 0.018]
@@ -112,6 +117,10 @@ def build_context(task: UmamusumeTask, ctrl) -> UmamusumeContext:
                 detail.scenario = ura_scenario.URAScenario()
             case ScenarioType.SCENARIO_TYPE_AOHARUHAI:
                 detail.scenario = aoharuhai_scenario.AoharuHaiScenario()
+            case ScenarioType.SCENARIO_TYPE_TRACKBLAZER:
+                detail.scenario = trackblazer_scenario.TrackblazerScenario()
+            case ScenarioType.SCENARIO_TYPE_GRAND_CONCERT:
+                detail.scenario = grand_concert_scenario.GrandConcertScenario()
             case _: # Placeholder, actually impossible to reach here
                 log.error("Unknown scenario")
                 detail.scenario = None
@@ -162,6 +171,7 @@ def build_context(task: UmamusumeTask, ctrl) -> UmamusumeContext:
         ])
         detail.compensate_failure = getattr(task.detail, 'compensate_failure', True)
         detail.use_last_parents = getattr(task.detail, 'use_last_parents', False)
+        detail.independent_training = getattr(task.detail, 'independent_training', False)
         detail.summer_score_threshold = float(getattr(task.detail, 'summer_score_threshold', 0.34))
         detail.wit_fallback_threshold = float(getattr(task.detail, 'wit_fallback_threshold', 0.01))
         # Event overrides
