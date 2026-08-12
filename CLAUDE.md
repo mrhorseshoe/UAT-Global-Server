@@ -96,6 +96,32 @@ icon-anchored search region in `find_race` cannot contain them.
 handler firing on the wrong screen usually means a template needs re-cropping
 after a game update, not that the handler logic is wrong.
 
+**Dialogs are dispatched by their OCR'd title, not by a UI template.** Anything
+with the green diagonal header matches `INFO`, and `script_info` fuzzy-matches
+the title against the `TITLE` list at 0.8, taking the *best* match. Some
+templates inherited from the CN project never match on Global at all
+(`CULTIVATE_FINAL_CHECK` is the Chinese 最终确认), so a screen can appear handled
+while actually being cleared by a coincidental title match against an unrelated
+entry — that is how the career start dialog worked before it was given a real
+entry. When adding a dialog, add its exact title to `TITLE` and check what it
+previously fuzzy-matched.
+
+**A handler that waits must click nothing.** `NOT_FOUND_UI` falls back to a
+blind corner click under a fixed name, and 11 identical consecutive clicks trip
+the repetitive-click guard into restarting the game. Any screen the bot sits on
+for a while (the Independent Training countdown) needs its own handler that
+clicks nothing. The other half of the trap is the 30 s watchdog in
+`executor.py`, which restarts the game when the downscaled frame stops changing
+— animated screens pass it, static ones need thought. Measure before assuming:
+the idle Home screen scores 5-25 against a threshold of 1.0.
+
+**Restarting the bot process used to lose the task list.** `saved_tasks.json` is
+now the durable store (written on add/delete, kept after loading), but the state
+that still only reaches disk when a run *ends* — run counts, scheduler flags —
+is lost if you kill the process mid-run. Prefer `POST /action/bot/stop` and let
+it finish, and remember that code changes only reach the bot after a process
+restart, so a long-running career is running whatever code it started with.
+
 ## Conventions
 
 - Presets live per-file under `userdata/umamusume/{race,skill}_presets/`; race

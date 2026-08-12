@@ -1,5 +1,14 @@
 # Changelog
 
+## 12/08/2026
+- **Independent Training loop**: new tickbox in the General section that loops the game's self-playing careers — the bot runs the preparation flow, picks the Independent Training tab, waits out the ~50 minute run, dismisses the training log, then buys skills and rerolls sparks as usual before starting the next one. Set the Training Focus, Agenda and Prioritized Skills in-game once; the game remembers them.
+- **Career start dialog**: the Final Confirmation dialog is now recognised by name and the bot checks which tab is selected before pressing Start. Previously the dialog had no handler on Global and was cleared by a coincidental fuzzy match, which meant a normal Career task could silently start an Independent Training run (the game remembers the last tab used), or the reverse.
+- **Trackblazer and Grand Concert** are selectable scenarios. They are greyed out unless Independent Training is ticked, since only scenario selection is implemented for them.
+- **Task modal tidied for the new mode**: the Career, Race and Event sections are hidden when Independent Training is on (the game plays the career itself), and Independent Training and Team Trials are mutually exclusive.
+- **Independent Training countdown** shown on the dashboard, so a bot waiting out a run doesn't look stalled.
+- **Tasks survive a crash**: `saved_tasks.json` was written only when a run ended and deleted as soon as it was read, so between runs your task list existed only in memory and any crash or kill lost it. It is now saved on every add and delete, kept after loading, and written atomically.
+- **Spark reroll accuracy**: a spark list read while the screen was still rendering could miss the blue or pink row and turn a roll that met your targets into an unnecessary 30 TP reroll. Such reads are now retried before the bot decides.
+
 ## 08/08/2026
 - **Borrowing Support Card menu rebuilt**: the card list is now generated from the game's own `master.mdb` (238 cards, SSR/SR/R) instead of a hardcoded list that carried untranslated and placeholder titles. Card art removed in favour of a text list, and new Friend and Group tabs make those cards selectable for the first time. Regenerate with `export_support_cards.py` after a game update — see the README.
 - **Race schedule presets**: save, apply, override and delete named race lists from the Race Options panel. Triple Crown, Triple Tiara, Triple Crown Dirt and Triple Tiara Dirt ship with the repo; your own presets live in `userdata/`.
