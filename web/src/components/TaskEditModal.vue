@@ -13,7 +13,7 @@
           <div class="side-nav">
             <div class="side-nav-title">Sections</div>
             <ul class="side-nav-list">
-              <li v-for="s in sectionList" :key="s.id">
+              <li v-for="s in visibleSections" :key="s.id">
                 <a href="#" :class="{ active: activeSection === s.id }" @click.prevent="scrollToSection(s.id)">{{ s.label }}</a>
               </li>
             </ul>
@@ -37,9 +37,19 @@
               </div>
               <div class="form-group" v-if="selectedExecuteMode === 6">
                 <div class="form-check">
-                  <input type="checkbox" class="form-check-input" id="checkTeamTrials" v-model="doTeamTrials">
+                  <input type="checkbox" class="form-check-input" id="checkTeamTrials" v-model="doTeamTrials" @change="onTeamTrialsChange">
                   <label class="form-check-label" for="checkTeamTrials">Team Trials (run between careers)</label>
                 </div>
+              </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6 && !doTeamTrials">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="checkIndependentTraining" v-model="independentTraining" @change="onIndependentTrainingChange">
+                  <label class="form-check-label" for="checkIndependentTraining">Independent Training (career runs in the background)</label>
+                </div>
+                <small class="text-muted" v-if="independentTraining">
+                  Set the Training Focus, Agenda and Prioritized Skills yourself once - the game remembers them. The bot picks the Independent Training tab, starts the run, then collects it and buys skills when it finishes.
+                  The Career, Race and Event sections are hidden because the game plays the career itself.
+                </small>
               </div>
               <div class="form-group" v-if="selectedExecuteMode === 6 && loopCount === 1 && !doTeamTrials">
                 <div class="form-check">
@@ -66,7 +76,14 @@
                     <select v-model.number="selectedScenario" class="form-control" id="selectScenario">
                       <option :value="1">URA</option>
                       <option :value="2">Unity Cup</option>
+                      <!-- only the scenario picker is implemented for these two;
+                           a standard career would need their own screen parsing -->
+                      <option :value="3" :disabled="!independentTraining">Trackblazer{{ independentTraining ? '' : ' (Independent Training only)' }}</option>
+                      <option :value="4" :disabled="!independentTraining">Grand Concert{{ independentTraining ? '' : ' (Independent Training only)' }}</option>
                     </select>
+                    <small class="text-danger" v-if="!independentTraining && (selectedScenario === 3 || selectedScenario === 4)">
+                      This scenario only works with Independent Training - tick it above, or choose URA or Unity Cup.
+                    </small>
                   </div>
                 </div>
                 <div class="col">
@@ -223,7 +240,9 @@
                 </div>
               </div>
             </div>
-            <div class="category-card" id="category-career">
+            <!-- Independent Training plays the career itself, so none of the
+                 in-career tuning below applies to it -->
+            <div class="category-card" id="category-career" v-if="!independentTraining">
               <div class="category-title">Career Settings</div>
               <div class="row">
                 <div class="col-3">
@@ -681,7 +700,7 @@
               </div>
 
             </div>
-            <div class="category-card" id="category-race">
+            <div class="category-card" id="category-race" v-if="!independentTraining">
               <div class="category-title">Race Settings</div>
               <div class="form-group">
                 <div>Racing Style Selection</div>
@@ -1343,7 +1362,7 @@
                 </div>
               </div>
             </div>
-          <div class="category-card" id="category-event">
+          <div class="category-card" id="category-event" v-if="!independentTraining">
               <div class="category-title">Event Settings</div>
 
               <div class="form-group mt-4 event-weights-section">
@@ -1988,6 +2007,7 @@ export default {
       selectedExecuteMode: 6,
       loopCount: 0,
       doTeamTrials: false,
+      independentTraining: false,
       stopAtSparkReroll: false,
       sparkRerollEnabled: false,
       sparkRerollTargets: {}, // {sparkName: minStars}
@@ -2167,6 +2187,13 @@ export default {
     window.removeEventListener('drop', this.onGlobalDrop, false);
   },
   computed: {
+    // Independent Training hides the sections it doesn't use, so the side nav
+    // must not offer links to cards that aren't rendered
+    visibleSections() {
+      if (!this.independentTraining) return this.sectionList
+      const hidden = ['category-career', 'category-race', 'category-event']
+      return this.sectionList.filter(s => !hidden.includes(s.id))
+    },
     filteredRaces_1() {
       return this.umamusumeRaceList_1.filter(race => {
         const matchesSearch = !this.raceSearch ||
@@ -2433,6 +2460,24 @@ export default {
     }
   },
     methods: {
+    // Team Trials and Independent Training both drive the loop, so only one of
+    // them can be on. (Handled here rather than with a watcher: the component
+    // has a second, empty watch block that overrides the real one.)
+    onTeamTrialsChange() {
+      if (this.doTeamTrials) this.independentTraining = false
+      this.ensureScenarioSupported()
+    },
+    onIndependentTrainingChange() {
+      if (this.independentTraining) this.doTeamTrials = false
+      this.ensureScenarioSupported()
+    },
+    // Trackblazer and Grand Concert are Independent Training only; don't leave
+    // a standard career pointing at one after the mode is switched off
+    ensureScenarioSupported() {
+      if (!this.independentTraining && (this.selectedScenario === 3 || this.selectedScenario === 4)) {
+        this.selectedScenario = 1
+      }
+    },
     loadPalCardStore() {
       this.axios.get('/api/pal-defaults', null, false)
         .then(res => {
@@ -3252,6 +3297,8 @@ export default {
           "spark_reroll_targets": this.sparkRerollTargets,
           "spark_reroll_mode": this.sparkRerollMode,
           "spark_reroll_use_carats": this.sparkRerollUseCarats,
+          // Independent Training loop: only in loop mode without team trials
+          "independent_training": (this.selectedExecuteMode === 6 && !this.doTeamTrials) ? this.independentTraining : false,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,

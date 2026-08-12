@@ -56,6 +56,19 @@
               </div>
             </div>
           </div>
+          <!-- Independent Training runs for ~50 real minutes with the bot
+               parked on one screen; without this the UI looks stalled -->
+          <div class="row g-3 mt-2" v-if="runtimeState.independent_training && runtimeState.independent_training.active">
+            <div class="col-12">
+              <div class="stat-card">
+                <div class="stat-label">Independent Training</div>
+                <div class="stat-value" style="font-size:18px">
+                  {{ runtimeState.independent_training.remaining }}
+                  <span class="small text-muted" style="margin-left:8px">(career running in the background - the bot is waiting)</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -114,7 +127,7 @@ export default {
       logContent: "",
       autoLog: true,
       taskLogTimer: undefined,
-      runtimeState: { repetitive_count: 0, repetitive_other_clicks: 0, repetitive_threshold: 11, watchdog_unchanged: 0, watchdog_threshold: 3 },
+      runtimeState: { repetitive_count: 0, repetitive_other_clicks: 0, repetitive_threshold: 11, watchdog_unchanged: 0, watchdog_threshold: 3, independent_training: { active: false, remaining: '' } },
       runtimePollTimer: undefined,
       editRepetitive: 11,
       editWatchdog: 3
