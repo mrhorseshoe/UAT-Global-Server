@@ -7,16 +7,29 @@ import bot.base.log as logger
 
 log = logger.get_logger(__name__)
 RESTARTING = False
+# set while the saved task list is being restored, so the per-task saves that
+# adding them triggers don't rewrite the file from a half-loaded list
+RESTORING_TASKS = False
 
 
 def write_json(path, data):
     try:
         import json
         os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as f:
+        # write to a temp file and swap it in, so a crash mid-write can't leave
+        # a truncated file where the task list used to be
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
         return True
     except Exception:
+        try:
+            os.remove(path + '.tmp')
+        except Exception:
+            pass
         return False
 
 
@@ -217,6 +230,8 @@ def load_scheduler_state():
 
 
 def save_scheduler_tasks():
+    if RESTORING_TASKS:
+        return False
     try:
         from bot.engine.scheduler import scheduler
         from bot.base.task import TaskExecuteMode as TEM, TaskStatus as TS
@@ -263,6 +278,7 @@ def save_scheduler_tasks():
 
 
 def load_saved_tasks():
+    global RESTORING_TASKS
     try:
         import bot.engine.ctrl as ctrl
         from bot.base.task import TaskExecuteMode as TEM
@@ -271,6 +287,7 @@ def load_saved_tasks():
         data = read_json(path)
         if data is None:
             return False
+        RESTORING_TASKS = True
         for it in data or []:
             try:
                 mode_raw = it.get('task_execute_mode')
@@ -311,13 +328,13 @@ def load_saved_tasks():
                     pass
             except Exception:
                 continue
-        try:
-            os.remove(path)
-        except Exception:
-            pass
+        # the file is the task store, not a one-shot handoff: keep it so a
+        # crash or a force-kill can't take the task list with it
         return True
     except Exception:
         return False
+    finally:
+        RESTORING_TASKS = False
 
 
 def purge_all(reason: str = ""):

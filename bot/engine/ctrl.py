@@ -25,14 +25,29 @@ def get_status():
     return {"status": status, "stop_after_run": bool(scheduler.stop_after_run)}
 
 
+def persist_tasks():
+    """Keep userdata/saved_tasks.json in step with the task list.
+
+    The list otherwise only reaches disk when a run ends, so a crash or a kill
+    before that loses whatever the user configured.
+    """
+    try:
+        from bot.base.purge import save_scheduler_tasks
+        save_scheduler_tasks()
+    except Exception:
+        pass
+
+
 def add_task(app_name, task_execute_mode, task_type, task_desc, cron_job_config, attachment_data):
     app_config = APP_MANIFEST_LIST[app_name]
     task = app_config.build_task(task_execute_mode, task_type, task_desc, cron_job_config, attachment_data)
     scheduler.add_task(task)
+    persist_tasks()
 
 
 def delete_task(task_id):
     scheduler.delete_task(task_id)
+    persist_tasks()
 
 
 def get_task_list():
