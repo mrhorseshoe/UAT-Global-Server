@@ -1318,7 +1318,31 @@ def _spark_star_count(origin_img, star1_x: int, y: int, pitch: int) -> int:
     return stars
 
 
-def parse_spark_rows(ctx: UmamusumeContext) -> list[dict]:
+def parse_spark_rows(ctx: UmamusumeContext, attempts: int = 3) -> list[dict]:
+    """Parse the spark rows on the sparks screen, retrying a partial read.
+
+    Rows whose crop comes out undersized are skipped, which happens while the
+    list is still rendering just after the screen appears. Every uma finishes
+    with one blue and one pink spark at the top of the list, so a read missing
+    either of them is partial - and acting on it turns a satisfied roll into a
+    miss, which costs a 30 TP reroll. Re-read before deciding.
+    """
+    rows = []
+    for attempt in range(max(1, attempts)):
+        rows = _parse_spark_rows_once(ctx)
+        colors = {r['color'] for r in rows}
+        if 'blue' in colors and 'pink' in colors:
+            return rows
+        if attempt < attempts - 1:
+            log.info(f"🎲 Spark list read looks partial (colors: {sorted(colors) or 'none'}) "
+                     f"- re-reading ({attempt + 1}/{attempts - 1})")
+            time.sleep(1)
+    log.warning(f"🎲 Spark list still incomplete after {attempts} reads - "
+                f"deciding on {len(rows)} row(s)")
+    return rows
+
+
+def _parse_spark_rows_once(ctx: UmamusumeContext) -> list[dict]:
     """Parse the spark rows visible on the full-width sparks screen
     (FACTOR_RECEIVE / FACTOR_REROLL, page 1). Returns
     [{'name', 'canonical', 'stars', 'color', 'y'}, ...] sorted by y."""
