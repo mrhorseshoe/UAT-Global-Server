@@ -59,6 +59,15 @@ driving the page with the browser tools works for rendering and interaction, but
 `web/src/util/axiosConf.js` hardcodes `baseURL` to `http://127.0.0.1:8071`, so
 the page's API calls still hit whatever bot is running there.
 
+The pattern that works best for screen handlers: capture real screens over ADB
+(`deps/adb/adb.exe -s emulator-5554 exec-out screencap -p > shot.png`), then run
+the actual handler against the saved PNG with a fake controller exposing
+`get_screen`, `click_by_point` and `click`, and assert on the clicks it records.
+That catches a wrong click point without touching the game. **Such scripts must
+`os.chdir` to the repo root** — `Template` resolves `resource/...` relative to
+the working directory, and templates that fail to load silently make every
+screen look unrecognised.
+
 ## Traps
 
 **State must survive the soft restart.** Because the process restarts after every
@@ -77,6 +86,27 @@ saved before your change are restored from disk without the new field.
 **Theme quirk: `btn-outline-primary` renders accent-on-accent (invisible text)
 inside input groups in the task modal.** Use `btn-outline-success` there, as the
 race and skill preset buttons do. Check computed colors after adding buttons.
+
+**`TaskEditModal.vue` has two `watch:` keys** — a populated one and an empty one
+declared later, which wins, so every watcher in that component is dead code. Use
+`@change` handlers instead, or fix the duplicate first (and re-check what
+reviving the dormant watchers does, since they have never run).
+
+**Several UI templates are crops of buttons, so they match wherever that button
+appears.** `MAIN_MENU` is a crop of the CAREER button, which also sits on event
+hub pages — the bot matched a hub as Home, clicked the fixed Home coordinate,
+hit empty space, and looped until the click guard restarted the game onto the
+same page. Handlers for such screens should click where the match was found
+(`image_match(...).center_point`) rather than a hardcoded point.
+
+**Trainer events (a few times a year) rewrite the career start path.** While one
+runs, a "Choose Career Mode" dialog appears between the scenario and trainee
+pickers with the event option preselected, and the Scenario Select screen grows
+an event banner. `_choose_career_mode` in `info.py` picks Normal Mode, verifies
+the switch took, and only then confirms — Confirm is the one-way door, and
+confirming the wrong option starts an event run. Expect a new event to add
+dialogs: check the logs for `Unknown option box - OCR: '...'` and add each exact
+title to `TITLE`.
 
 **The in-game master database is the source of truth for names.** It is SQLite at
 `%USERPROFILE%\AppData\LocalLow\Cygames\Umamusume\master\master.mdb`; entity
@@ -131,3 +161,27 @@ restart, so a long-running career is running whatever code it started with.
   `resource/` or `web/src/assets/`.
 - Match the surrounding code; much of it is inherited from an upstream CN project
   and still has Chinese comments.
+
+## Where things stand (Aug 2026)
+
+`origin` is the owner's fork (`mrhorseshoe/UAT-Global-Server`) and is the only
+place to push; `upstream` is the original project, which is abandoned and
+rejects pushes.
+
+The current line of work is the branch **`feat/independent-training`** (pushed,
+not merged into `main`): the Independent Training loop, the two new scenarios,
+durable task storage, the spark partial-read retry, and the trainer-event
+failsafe. It has run unattended for a dozen careers in a row, so treat it as
+working and be suspicious of regressions rather than rebuilding it.
+
+Two deliberate limits, in case they look like bugs:
+
+- The bot always declines the event career and picks Normal Mode; running an
+  event career would need a task setting that does not exist yet.
+- Trackblazer and Grand Concert are selectable only — their scenario classes
+  inherit URA's parsing — so they are greyed out unless Independent Training is
+  ticked. A standard career there would need its own date/training parsing.
+
+Known small gap: the `'Career Complete'` dialog has no `TITLE` entry and gets
+through on the 0.6 fuzzy fallback landing on `'Training Complete'`. It works,
+but it is the same kind of coincidence that was removed elsewhere.
