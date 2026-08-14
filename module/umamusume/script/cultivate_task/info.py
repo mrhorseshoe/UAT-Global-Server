@@ -92,7 +92,53 @@ TITLE = [
     "Session Error", #46
     "areer Playthrough Difficulty Se", #47
     "Final Confirmation", ##career start dialog: Normal Career / Independent Training tabs # TITLE[48]
+    "Choose Career Mode", ##shown between scenario and trainee while a trainer event runs # TITLE[49]
+    "Start Event", ##event career confirmation; backed out of, we want a plain career # TITLE[50]
 ]
+
+
+def _event_mode_selected(ctx) -> bool:
+    """True while the dialog has the event career picked.
+
+    The event option carries a "Selected Test" section that Normal Mode does
+    not, which is the cheapest way to tell the two states apart.
+    """
+    try:
+        screen = ctx.ctrl.get_screen()
+        text = (ocr_line(cv2.cvtColor(screen[585:630, 25:320], cv2.COLOR_BGR2GRAY)) or '').lower()
+        return 'selected test' in text
+    except Exception:
+        # unreadable: assume the event is still selected rather than confirm
+        # into an event run by accident
+        return True
+
+
+def _choose_career_mode(ctx: UmamusumeContext) -> None:
+    """Trainer events (the Aptitude Test and its siblings, a few times a year)
+    insert this dialog between the scenario and the trainee picker, with the
+    event option preselected. A loop wants a plain career, so switch to Normal
+    Mode - and check the switch took before confirming, because Confirm is the
+    only way out of the dialog and confirming the wrong option starts an event
+    run instead.
+    """
+    detail = getattr(ctx, 'cultivate_detail', None)
+    if _event_mode_selected(ctx):
+        tries = getattr(detail, 'career_mode_switch_tries', 0) + 1
+        if detail is not None:
+            detail.career_mode_switch_tries = tries
+        if tries > 5:
+            log.error("Career mode dialog: could not switch to Normal Mode after "
+                      f"{tries - 1} attempts - stopping instead of starting an event run")
+            ctx.task.end_task(TaskStatus.TASK_STATUS_FAILED, EndTaskReason.SYSTEM_ERROR)
+            return
+        log.info(f"Career mode dialog: event mode selected - switching to Normal Mode (attempt {tries})")
+        ctx.ctrl.click_by_point(CAREER_MODE_NORMAL)
+        time.sleep(1)
+        return
+    if detail is not None:
+        detail.career_mode_switch_tries = 0
+    log.info("Career mode dialog: Normal Mode selected - confirming")
+    ctx.ctrl.click_by_point(CAREER_MODE_CONFIRM)
 
 
 def _final_confirmation(ctx: UmamusumeContext) -> None:
@@ -343,6 +389,14 @@ def script_info(ctx: UmamusumeContext):
                 ctx.ctrl.click_by_point(USE_TP_DRINK_RESULT_CLOSE)
         if title_text == TITLE[48]:  # Final Confirmation (career start)
             _final_confirmation(ctx)
+            return
+        if title_text == TITLE[49]:  # Choose Career Mode (trainer event running)
+            _choose_career_mode(ctx)
+            return
+        if title_text == TITLE[50]:  # Start Event - back out, we want a plain career
+            log.info("Event start dialog - backing out to keep the career loop on Normal Mode")
+            ctx.ctrl.click_by_point(ESCAPE)
+            time.sleep(1)
             return
         if title_text == TITLE[39]: #disconnect
             ctx.ctrl.click(383, 840, "reconnect")

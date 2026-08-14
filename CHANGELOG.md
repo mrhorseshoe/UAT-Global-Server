@@ -1,5 +1,9 @@
 # Changelog
 
+## 13/08/2026
+- **Trainer event failsafe**: while a trainer event runs (the Aptitude Test and its siblings, a few times a year) the game inserts a "Choose Career Mode" dialog between the scenario and the trainee picker, with the event option preselected. The bot now switches it to Normal Mode, checks the switch took, and only then confirms — confirming the wrong option starts an event run instead of the career you asked for. The event's "Start Event" prompt is backed out of rather than blindly escaped.
+- **Event hub no longer strands the bot**: the Home screen is recognised by a crop of its CAREER button, and event hub pages carry the same button elsewhere on screen, so the bot matched the hub as Home and clicked the fixed Home coordinate — empty space — until the repetitive-click guard restarted the game onto the same page. It now clicks the button where the match actually found it, which works on Home and on any event hub.
+
 ## 12/08/2026
 - **Independent Training loop**: new tickbox in the General section that loops the game's self-playing careers — the bot runs the preparation flow, picks the Independent Training tab, waits out the ~50 minute run, dismisses the training log, then buys skills and rerolls sparks as usual before starting the next one. Set the Training Focus, Agenda and Prioritized Skills in-game once; the game remembers them.
 - **Career start dialog**: the Final Confirmation dialog is now recognised by name and the bot checks which tab is selected before pressing Start. Previously the dialog had no handler on Global and was cleared by a coincidental fuzzy match, which meant a normal Career task could silently start an Independent Training run (the game remembers the last tab used), or the reverse.

@@ -1216,6 +1216,21 @@ def script_main_menu(ctx: UmamusumeContext):
         else:
             ctx.task.end_task(TaskStatus.TASK_STATUS_SUCCESS, EndTaskReason.COMPLETE)
             return
+    # This screen is recognised by the CAREER button itself, and event hubs
+    # (the Trainer Aptitude Test page, which the game reopens on) carry the
+    # same button in a different place. Clicking the fixed Home coordinate
+    # there hits empty space, and the bot taps it until the repetitive-click
+    # guard restarts the game - straight back onto the event page. Click the
+    # button where it was actually found.
+    try:
+        img = ctx.current_screen if ctx.current_screen is not None else ctx.ctrl.get_screen()
+        found = image_match(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), UI_MAIN_MENU)
+        if found.find_match:
+            ctx.ctrl.click(found.center_point[0], found.center_point[1],
+                           "Go to Scenario Selection")
+            return
+    except Exception:
+        pass
     ctx.ctrl.click_by_point(TO_CULTIVATE_SCENARIO_CHOOSE)
 
 

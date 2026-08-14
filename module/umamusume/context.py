@@ -81,6 +81,7 @@ class CultivateContextDetail:
         self.independent_training = False
         self.final_confirmation_tab_tries = 0
         self.independent_training_last_log = ''
+        self.career_mode_switch_tries = 0
         self.pal_event_stage = 0
         self.pal_name = ""
         self.pal_friendship_score = [0.08, 0.057, 0.018]

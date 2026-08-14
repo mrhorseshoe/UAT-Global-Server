@@ -13,6 +13,9 @@ CULTIVATE_FINAL_CHECK_START = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDIN
 FINAL_CONFIRMATION_TAB_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(190, 216), "Final Confirmation - Normal Career tab")
 FINAL_CONFIRMATION_TAB_INDEPENDENT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(530, 216), "Final Confirmation - Independent Training tab")
 INDEPENDENT_TRAINING_RESULTS_OK = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1178), "Independent Training Results - OK")
+# "Choose Career Mode" dialog, shown while a trainer event is running
+CAREER_MODE_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 225), "Choose Career Mode - Normal Mode")
+CAREER_MODE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 1182), "Choose Career Mode - Confirm")
 TO_FOLLOW_SUPPORT_CARD_SELECT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(570, 680), "Borrow Support Card")
 FOLLOW_SUPPORT_CARD_SELECT_REFRESH = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(650, 1010), "Borrow Support Card - Refresh")
 
