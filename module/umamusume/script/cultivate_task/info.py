@@ -98,6 +98,7 @@ TITLE = [
     "Agenda", ##Independent Training race grid, reached from the start dialog's Edit # TITLE[52]
     "My Agendas", ##the 8 saved agenda slots # TITLE[53]
     "Overwrite", ##confirms loading a saved agenda over the current schedule # TITLE[54]
+    "Independent Training", ##a run is pending; CAREER on Home opens this # TITLE[55]
 ]
 
 
@@ -307,6 +308,32 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
         y1, y2 = 500, 500 - 220 * step
     log.info(f"Agenda {want}: list starts at slot {first}, scrolling {step:+d} row(s)")
     ctx.ctrl.swipe(x1=360, y1=y1, x2=360, y2=y2, duration=600, name="agenda list")
+
+
+def _script_independent_training_pending(ctx: UmamusumeContext, title_pos) -> None:
+    """The dialog the game raises when CAREER is pressed on Home while an
+    Independent Training run is pending - either still counting down or
+    finished and waiting to be collected.
+
+    The bot normally never sees it, because it is already inside the run when
+    the timer ends; it only appears after the game is restarted mid-run, which
+    is exactly when the loop needs to recover. Escaping it just lands back on
+    Home, where the bot presses CAREER again - that round trip is what wedged
+    the loop for an hour. Its green button (Career) enters the run and is found
+    by colour, because "Delete Data" sits on the same dialog and would throw
+    the career away.
+    """
+    from module.umamusume.script.cultivate_task.parse import find_green_button
+
+    ok = find_green_button(ctx.current_screen, 70, title_pos[1][1], 660, 1270)
+    if ok:
+        log.info("Independent Training run pending - entering it")
+        ctx.ctrl.click(ok[0], ok[1], "Enter the pending Independent Training run")
+    else:
+        log.warning("Independent Training run pending - green button not found, "
+                    "using the fixed point")
+        ctx.ctrl.click_by_point(INDEPENDENT_TRAINING_PENDING_CAREER)
+    time.sleep(1)
 
 
 def _script_agenda_overwrite(ctx: UmamusumeContext) -> None:
@@ -594,6 +621,9 @@ def script_info(ctx: UmamusumeContext):
             log.info("Event start dialog - backing out to keep the career loop on Normal Mode")
             ctx.ctrl.click_by_point(ESCAPE)
             time.sleep(1)
+            return
+        if title_text == TITLE[55]:  # Independent Training run pending
+            _script_independent_training_pending(ctx, pos)
             return
         if title_text == TITLE[52]:  # Agenda (the race grid)
             _script_agenda(ctx)

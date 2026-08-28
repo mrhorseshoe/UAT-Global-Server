@@ -20,6 +20,10 @@ AGENDA_MY_AGENDAS = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None,
 AGENDA_CLOSE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1182), "Agenda - Close")
 AGENDA_OVERWRITE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 918), "Agenda - Overwrite the current schedule")
 AGENDA_OVERWRITE_CANCEL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(202, 918), "Agenda - Cancel the overwrite")
+# "Independent Training" dialog, shown when CAREER is pressed on Home with a
+# run pending. Its green Career button enters the run; "Delete Data" sits at the
+# top right and must never be touched.
+INDEPENDENT_TRAINING_PENDING_CAREER = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 827), "Independent Training - enter the pending run")
 # "Choose Career Mode" dialog, shown while a trainer event is running
 CAREER_MODE_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 225), "Choose Career Mode - Normal Mode")
 CAREER_MODE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 1182), "Choose Career Mode - Confirm")
