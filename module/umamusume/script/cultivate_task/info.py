@@ -94,6 +94,10 @@ TITLE = [
     "Final Confirmation", ##career start dialog: Normal Career / Independent Training tabs # TITLE[48]
     "Choose Career Mode", ##shown between scenario and trainee while a trainer event runs # TITLE[49]
     "Start Event", ##event career confirmation; backed out of, we want a plain career # TITLE[50]
+    "Career Complete", ##end-of-career return prompt; Cancel keeps the bot's own path # TITLE[51]
+    "Agenda", ##Independent Training race grid, reached from the start dialog's Edit # TITLE[52]
+    "My Agendas", ##the 8 saved agenda slots # TITLE[53]
+    "Overwrite", ##confirms loading a saved agenda over the current schedule # TITLE[54]
 ]
 
 
@@ -141,6 +145,185 @@ def _choose_career_mode(ctx: UmamusumeContext) -> None:
     ctx.ctrl.click_by_point(CAREER_MODE_CONFIRM)
 
 
+AGENDA_MAX_STEPS = 24
+
+
+def _agenda_wanted(ctx) -> int:
+    """Which My Agendas slot this task wants loaded (1-8); 0 leaves the game's
+    own schedule alone, which is what every task saved before this setting
+    existed does."""
+    from module.umamusume.script.cultivate_task.parse import AGENDA_SLOT_COUNT
+    # Same place _final_confirmation reads independent_training from; the task
+    # detail is the fallback for a context built before this setting existed.
+    n = getattr(getattr(ctx, 'cultivate_detail', None), 'independent_agenda', None)
+    if n is None:
+        n = getattr(getattr(ctx.task, 'detail', None), 'independent_agenda', 0)
+    try:
+        n = int(n or 0)
+    except (TypeError, ValueError):
+        return 0
+    return n if 1 <= n <= AGENDA_SLOT_COUNT else 0
+
+
+def _agenda_phase(ctx) -> str:
+    return getattr(getattr(ctx, 'cultivate_detail', None), 'agenda_phase', '')
+
+
+def _agenda_set_phase(ctx, phase: str) -> None:
+    detail = getattr(ctx, 'cultivate_detail', None)
+    if detail is not None:
+        detail.agenda_phase = phase
+        detail.agenda_waits = 0
+
+
+def _agenda_wait(ctx, limit: int = 3) -> bool:
+    """True while it is still worth sitting out a frame. The screens either
+    side of a Load List click flicker for a couple of seconds before the
+    overwrite dialog lands, and closing out on that flicker is what made every
+    run load its agenda twice."""
+    detail = getattr(ctx, 'cultivate_detail', None)
+    waited = getattr(detail, 'agenda_waits', 0) + 1
+    if detail is not None:
+        detail.agenda_waits = waited
+    return waited <= limit
+
+
+def _agenda_step(ctx) -> bool:
+    """Count one frame of the agenda flow. Returns False once it has taken too
+    many, so the run starts on whatever schedule the game has rather than
+    ping-ponging between these screens until the click guard restarts the app."""
+    detail = getattr(ctx, 'cultivate_detail', None)
+    steps = getattr(detail, 'agenda_steps', 0) + 1
+    if detail is not None:
+        detail.agenda_steps = steps
+    if steps > AGENDA_MAX_STEPS:
+        log.warning(f"Agenda picker: giving up after {steps} steps - starting the run "
+                    "on the schedule the game already has")
+        _agenda_set_phase(ctx, 'done')
+        return False
+    return True
+
+
+def _script_agenda(ctx: UmamusumeContext) -> None:
+    """The Agenda editor (the race grid). Only reached because this flow
+    clicked Edit, so: go on to the slot list, and once a slot has been loaded,
+    close back to the start dialog."""
+    from module.umamusume.script.cultivate_task.parse import agenda_load_buttons
+
+    phase = _agenda_phase(ctx)
+    # 'Agenda' and 'My Agendas' are 0.75 similar, so a smudged title can be
+    # read as the other one. The slot list is the screen with the green
+    # "Load List" buttons down its right side - trust that over the title.
+    if phase == 'list' and len(agenda_load_buttons(ctx.ctrl.get_screen())) >= 2:
+        _script_my_agendas(ctx)
+        return
+    if phase == 'opening':
+        if not _agenda_step(ctx):
+            ctx.ctrl.click_by_point(AGENDA_CLOSE)
+            return
+        log.info("Agenda editor - opening the saved agenda list")
+        _agenda_set_phase(ctx, 'list')
+        ctx.ctrl.click_by_point(AGENDA_MY_AGENDAS)
+        time.sleep(1)
+        return
+    if phase == 'loaded':
+        log.info("Agenda loaded - closing the editor")
+        _agenda_set_phase(ctx, 'done')
+        ctx.ctrl.click_by_point(AGENDA_CLOSE)
+        time.sleep(1)
+        return
+    if phase == 'load_clicked':
+        # The overwrite dialog has been asked for but has not drawn yet; this
+        # frame is the gap. Sit still - clicking here throws the whole flow
+        # back to the start dialog and costs a second trip through it.
+        if _agenda_wait(ctx):
+            log.info("Agenda editor while a load is in flight - waiting for the "
+                     "overwrite dialog")
+            return
+        log.warning("Agenda load never raised the overwrite dialog - reopening the list")
+        _agenda_set_phase(ctx, 'list')
+        ctx.ctrl.click_by_point(AGENDA_MY_AGENDAS)
+        time.sleep(1)
+        return
+    # nothing of ours in flight: back out to the start dialog
+    log.info(f"Agenda editor with nothing in flight (phase {phase!r}) - closing it")
+    ctx.ctrl.click_by_point(AGENDA_CLOSE)
+    time.sleep(1)
+
+
+def _script_my_agendas(ctx: UmamusumeContext) -> None:
+    """The 8 saved agenda slots, three visible at a time. Scroll until the
+    wanted slot is on screen, then click its Load List."""
+    from module.umamusume.script.cultivate_task.parse import (
+        agenda_first_visible_row, agenda_load_buttons)
+
+    want = _agenda_wanted(ctx)
+    phase = _agenda_phase(ctx)
+    if want and phase == 'load_clicked':
+        # Same gap as on the editor: the row has been clicked and the dialog is
+        # on its way. Waiting beats closing the list and starting over.
+        if _agenda_wait(ctx):
+            log.info("Agenda list still up after the load click - waiting for the "
+                     "overwrite dialog")
+            return
+        log.warning("Agenda load click did not take - trying the row again")
+        _agenda_set_phase(ctx, 'list')
+        return
+    if not want or phase != 'list':
+        log.info(f"Agenda list with nothing in flight (phase {phase!r}) - closing it")
+        ctx.ctrl.click_by_point(AGENDA_CLOSE)
+        time.sleep(1)
+        return
+    if not _agenda_step(ctx):
+        ctx.ctrl.click_by_point(AGENDA_CLOSE)
+        return
+
+    screen = ctx.ctrl.get_screen()
+    first = agenda_first_visible_row(screen)
+    buttons = agenda_load_buttons(screen)
+    if first is None or not buttons:
+        log.warning("Agenda list: could not read the scrollbar or the buttons - "
+                    "nudging the list and retrying")
+        ctx.ctrl.swipe(x1=360, y1=950, x2=360, y2=730, duration=600, name="agenda list")
+        return
+
+    index = want - first  # position of the wanted slot among the visible rows
+    if 0 <= index < len(buttons):
+        x, y = buttons[index]
+        log.info(f"Agenda {want}: loading it (row {index + 1} of {len(buttons)} on "
+                 f"screen, list starts at slot {first})")
+        _agenda_set_phase(ctx, 'load_clicked')
+        ctx.ctrl.click(x, y, f"Load agenda {want}")
+        time.sleep(1)
+        return
+
+    # Off screen. A row is ~220px; scroll at most two at a time and stay inside
+    # the list so the swipe cannot end on Close.
+    if index >= len(buttons):
+        step = min(2, index - len(buttons) + 1)
+        y1, y2 = 950, 950 - 220 * step
+    else:
+        step = max(-2, index)
+        y1, y2 = 500, 500 - 220 * step
+    log.info(f"Agenda {want}: list starts at slot {first}, scrolling {step:+d} row(s)")
+    ctx.ctrl.swipe(x1=360, y1=y1, x2=360, y2=y2, duration=600, name="agenda list")
+
+
+def _script_agenda_overwrite(ctx: UmamusumeContext) -> None:
+    """Confirms loading a saved agenda over the current schedule. The game
+    warns that the replaced schedule cannot be retrieved, so only ever confirm
+    the dialog this flow opened; anything else is cancelled."""
+    if _agenda_phase(ctx) != 'load_clicked':
+        log.warning("Overwrite dialog with no agenda load in progress - cancelling")
+        ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CANCEL)
+        time.sleep(1)
+        return
+    log.info(f"Agenda {_agenda_wanted(ctx)}: confirming the overwrite")
+    _agenda_set_phase(ctx, 'loaded')
+    ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CONFIRM)
+    time.sleep(1)
+
+
 def _final_confirmation(ctx: UmamusumeContext) -> None:
     """Career start dialog.
 
@@ -173,6 +356,20 @@ def _final_confirmation(ctx: UmamusumeContext) -> None:
 
     if detail is not None:
         detail.final_confirmation_tab_tries = 0
+
+    # Independent Training only: load the task's chosen race agenda before
+    # starting. The Agenda block lives on this tab, and loading is idempotent -
+    # the game replaces the user-race set, so re-applying the same slot every
+    # run does not stack races.
+    want_agenda = _agenda_wanted(ctx)
+    if want_agenda and on_independent and _agenda_phase(ctx) != 'done':
+        if _agenda_step(ctx):
+            log.info(f"Career start: loading agenda {want_agenda} before starting")
+            _agenda_set_phase(ctx, 'opening')
+            ctx.ctrl.click_by_point(AGENDA_EDIT)
+            time.sleep(1)
+            return
+
     log.info(f"Career start: confirming on the "
              f"{'Independent Training' if on_independent else 'Normal Career'} tab")
     ctx.ctrl.click_by_point(CULTIVATE_FINAL_CHECK_START)
@@ -397,6 +594,25 @@ def script_info(ctx: UmamusumeContext):
             log.info("Event start dialog - backing out to keep the career loop on Normal Mode")
             ctx.ctrl.click_by_point(ESCAPE)
             time.sleep(1)
+            return
+        if title_text == TITLE[52]:  # Agenda (the race grid)
+            _script_agenda(ctx)
+            return
+        if title_text == TITLE[53]:  # My Agendas (the 8 saved slots)
+            _script_my_agendas(ctx)
+            return
+        if title_text == TITLE[54]:  # Overwrite (loading a saved agenda)
+            _script_agenda_overwrite(ctx)
+            return
+        if title_text == TITLE[51]:  # Career Complete - "Return to the home screen?"
+            # Always Cancel. The plain career asks about the home screen and the
+            # trainer event asks about the event home screen; either way the bot
+            # walks itself back from the result screens, and taking the green
+            # button during an event lands it on the event hub instead of Home.
+            # (This used to be handled only by 'Career Complete' fuzzy-matching
+            # 'Training Complete' at 0.6 - same click, by coincidence.)
+            log.info("Career Complete dialog - cancelling the return prompt")
+            ctx.ctrl.click_by_point(CULTIVATE_FINISH_RETURN_CONFIRM)
             return
         if title_text == TITLE[39]: #disconnect
             ctx.ctrl.click(383, 840, "reconnect")

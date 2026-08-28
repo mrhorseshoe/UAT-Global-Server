@@ -47,8 +47,18 @@
                   <label class="form-check-label" for="checkIndependentTraining">Independent Training (career runs in the background)</label>
                 </div>
                 <small class="text-muted" v-if="independentTraining">
-                  Set the Training Focus, Agenda and Prioritized Skills yourself once - the game remembers them. The bot picks the Independent Training tab, starts the run, then collects it and buys skills when it finishes.
+                  Set the Training Focus and Prioritized Skills yourself once - the game remembers them. The bot picks the Independent Training tab, starts the run, then collects it and buys skills when it finishes.
                   The Career, Race and Event sections are hidden because the game plays the career itself.
+                </small>
+              </div>
+              <div class="form-group" v-if="selectedExecuteMode === 6 && !doTeamTrials && independentTraining">
+                <label for="selectIndependentAgenda">Race Agenda</label>
+                <select v-model.number="independentAgenda" class="form-control" id="selectIndependentAgenda">
+                  <option :value="0">Leave as-is (whatever the game has)</option>
+                  <option v-for="n in 8" :key="n" :value="n">Agenda {{ n }}</option>
+                </select>
+                <small class="text-muted">
+                  Loads a slot from the game's My Agendas list before every run, counted from the top of that list. Leave as-is to keep the schedule the game already has.
                 </small>
               </div>
               <div class="form-group" v-if="selectedExecuteMode === 6 && loopCount === 1 && !doTeamTrials">
@@ -1341,7 +1351,7 @@
                   </div>
                 </div>
                 <div class="row">
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="d-block mb-1">Override insufficient fans forced races</label>
                     <div class="token-toggle" role="group" aria-label="Override insufficient fans forced races">
                       <button type="button" class="token" :class="{ active: overrideInsufficientFansForcedRaces }"
@@ -1350,13 +1360,22 @@
                         @click="overrideInsufficientFansForcedRaces = false">Off</button>
                     </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="d-block mb-1">Buy skills only post-career</label>
-                    <div class="token-toggle" role="group" aria-label="Buy skills only post-career">
-                      <button type="button" class="token" :class="{ active: learnSkillOnlyAtEnd }"
+                    <div class="token-toggle" :class="{ disabled: skipLearnSkill }" role="group" aria-label="Buy skills only post-career">
+                      <button type="button" class="token" :class="{ active: learnSkillOnlyAtEnd }" :disabled="skipLearnSkill"
                         @click="learnSkillOnlyAtEnd = true">On</button>
-                      <button type="button" class="token" :class="{ active: !learnSkillOnlyAtEnd }"
+                      <button type="button" class="token" :class="{ active: !learnSkillOnlyAtEnd }" :disabled="skipLearnSkill"
                         @click="learnSkillOnlyAtEnd = false">Off</button>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="d-block mb-1" title="Never open the skill screen: no mid-career learning and no post-career sweep. Overrides the other skill purchase settings.">Don't buy skills</label>
+                    <div class="token-toggle" role="group" aria-label="Don't buy skills">
+                      <button type="button" class="token" :class="{ active: skipLearnSkill }"
+                        @click="skipLearnSkill = true">On</button>
+                      <button type="button" class="token" :class="{ active: !skipLearnSkill }"
+                        @click="skipLearnSkill = false">Off</button>
                     </div>
                   </div>
                 </div>
@@ -2008,6 +2027,7 @@ export default {
       loopCount: 0,
       doTeamTrials: false,
       independentTraining: false,
+      independentAgenda: 0,
       stopAtSparkReroll: false,
       sparkRerollEnabled: false,
       sparkRerollTargets: {}, // {sparkName: minStars}
@@ -2037,6 +2057,7 @@ export default {
       skillLearnBlacklist: "",
       learnSkillOnlyUserProvided: false,
       learnSkillOnlyAtEnd: false,
+      skipLearnSkill: false,
       learnSkillBeforeRace: false,
       selectedRaceTactic1: 4,
       selectedRaceTactic2: 4,
@@ -2952,6 +2973,7 @@ export default {
       this.blacklistedSkills = [...(p.blacklist || [])];
       if (p.only_user_provided !== undefined) this.learnSkillOnlyUserProvided = !!p.only_user_provided;
       if (p.only_at_end !== undefined) this.learnSkillOnlyAtEnd = !!p.only_at_end;
+      if (p.skip_learn_skill !== undefined) this.skipLearnSkill = !!p.skip_learn_skill;
       if (p.threshold !== undefined) this.learnSkillThreshold = p.threshold;
       if (p.manual_purchase !== undefined) this.manualPurchase = !!p.manual_purchase;
     },
@@ -2987,6 +3009,7 @@ export default {
         blacklist: [...this.blacklistedSkills],
         only_user_provided: this.learnSkillOnlyUserProvided,
         only_at_end: this.learnSkillOnlyAtEnd,
+        skip_learn_skill: this.skipLearnSkill,
         threshold: this.learnSkillThreshold,
         manual_purchase: this.manualPurchase
       };
@@ -3299,6 +3322,7 @@ export default {
           "spark_reroll_use_carats": this.sparkRerollUseCarats,
           // Independent Training loop: only in loop mode without team trials
           "independent_training": (this.selectedExecuteMode === 6 && !this.doTeamTrials) ? this.independentTraining : false,
+          "independent_agenda": this.independentTraining ? this.independentAgenda : 0,
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,
@@ -3319,6 +3343,7 @@ export default {
           "use_last_parents": this.useLastParents,
           "learn_skill_only_user_provided": this.learnSkillOnlyUserProvided,
           "learn_skill_only_at_end": this.learnSkillOnlyAtEnd,
+          "skip_learn_skill": this.skipLearnSkill,
           "extra_weight": [this.extraWeight1, this.extraWeight2, this.extraWeight3, this.extraWeightSummer],
           "spirit_explosion": this.extraSpiritExplosion.map(v => Math.max(-1, Math.min(1, v))),
           "score_value": [

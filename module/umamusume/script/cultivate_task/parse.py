@@ -1482,6 +1482,67 @@ def find_green_button(origin_img, x1: int, y1: int, x2: int, y2: int):
     return x1 + best[1], y1 + best[2]
 
 
+# --- Independent Training race agenda ---------------------------------------
+# The "My Agendas" list holds 8 saved slots and shows three at a time, so a
+# slot picked by position has to be found by scrolling. Two readings do it:
+# the right-edge scrollbar says which row is on top, and the green "Load List"
+# buttons give the rows their y positions. Buttons are found by colour on
+# purpose - the white "Save Here" button sits ~65px above each Load List and
+# OVERWRITES a saved slot, so it must never be hit by accident.
+AGENDA_SLOT_COUNT = 8
+AGENDA_LIST_SCAN = (415, 1055)        # y range of the list viewport
+AGENDA_SCROLLBAR_COLS = (692, 697)    # track reads ~209, thumb ~120
+
+
+def agenda_first_visible_row(origin_img):
+    """1-based index of the topmost visible row in the My Agendas list, or
+    None when the scrollbar cannot be read."""
+    top, bot = AGENDA_LIST_SCAN
+    bot = min(bot, origin_img.shape[0])
+    for x in range(*AGENDA_SCROLLBAR_COLS):
+        col = origin_img[top:bot, x].min(axis=1).astype(numpy.int32)
+        track = numpy.where(col < 230)[0]
+        if len(track) < 300:
+            continue
+        t0, t1 = int(track[0]), int(track[-1])
+        thumb = numpy.where(col[t0:t1 + 1] < 165)[0]
+        if len(thumb) < 20:
+            continue
+        track_len = t1 - t0
+        thumb_len = int(thumb[-1] - thumb[0])
+        free = track_len - thumb_len
+        if free <= 0:
+            return 1
+        visible = AGENDA_SLOT_COUNT * thumb_len / track_len
+        frac = int(thumb[0]) / free
+        return int(round(1 + frac * (AGENDA_SLOT_COUNT - visible)))
+    return None
+
+
+def agenda_load_buttons(origin_img):
+    """Centres of the visible green "Load List" buttons, top to bottom."""
+    x1, y1, x2, y2 = 520, AGENDA_LIST_SCAN[0], 700, AGENDA_LIST_SCAN[1]
+    region = origin_img[y1:y2, x1:x2]
+    if region.size == 0:
+        return []
+    b = region[:, :, 0].astype(numpy.int32)
+    g = region[:, :, 1].astype(numpy.int32)
+    r = region[:, :, 2].astype(numpy.int32)
+    mask = ((g > 160) & (g - r > 50) & (g - b > 60) & (r < 190)).astype(numpy.uint8)
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    found = []
+    for i in range(1, count):
+        x, y, w_c, h_c, area = stats[i]
+        if not (100 <= w_c <= 400 and 30 <= h_c <= 110):
+            continue
+        if not (1.5 <= w_c / max(1, h_c) <= 9):
+            continue
+        if area < 0.45 * w_c * h_c:
+            continue
+        found.append((int(x1 + centroids[i][0]), int(y1 + centroids[i][1])))
+    return sorted(found, key=lambda p: p[1])
+
+
 SPARK_BLUE_NAMES = {'speed', 'stamina', 'power', 'guts', 'wit'}
 
 

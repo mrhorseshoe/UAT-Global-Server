@@ -192,9 +192,11 @@ def script_cultivate_main_menu(ctx: UmamusumeContext):
         ctx.cultivate_detail.reset_skill_learn()
 
     # Check if we should skip automatic skill learning
-    # Skip when manual purchase is enabled AND we're at cultivate finish,
-    # or when the user forbids buying skills before the post-career sweep
-    skip_auto_skill_learning = ((ctx.task.detail.manual_purchase_at_end and ctx.cultivate_detail.cultivate_finish)
+    # Skip when the task never buys skills at all, when manual purchase is
+    # enabled AND we're at cultivate finish, or when the user forbids buying
+    # skills before the post-career sweep
+    skip_auto_skill_learning = (getattr(ctx.task.detail, 'skip_learn_skill', False)
+                                or (ctx.task.detail.manual_purchase_at_end and ctx.cultivate_detail.cultivate_finish)
                                 or (getattr(ctx.task.detail, 'learn_skill_only_at_end', False)
                                     and not ctx.cultivate_detail.cultivate_finish))
     
@@ -1799,6 +1801,15 @@ def script_cultivate_catch_doll_result(ctx: UmamusumeContext):
 
 
 def script_cultivate_finish(ctx: UmamusumeContext):
+    # "Don't buy skills": no mid-career learning and no post-career sweep, so
+    # go straight to Confirm and skip the whole skill screen round trip. Takes
+    # precedence over manual purchase and the post-career-only setting.
+    if getattr(ctx.task.detail, 'skip_learn_skill', False):
+        if not ctx.cultivate_detail.cultivate_finish:
+            log.info("Skill buying is off for this task - skipping the skill sweep")
+            ctx.cultivate_detail.cultivate_finish = True
+        ctx.ctrl.click_by_point(CULTIVATE_FINISH_CONFIRM)
+        return
     if not ctx.task.detail.manual_purchase_at_end:
         if not ctx.cultivate_detail.cultivate_finish:
             ctx.cultivate_detail.cultivate_finish = True

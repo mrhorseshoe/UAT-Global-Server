@@ -21,6 +21,7 @@ class TaskDetail:
     learn_skill_threshold: int
     learn_skill_only_user_provided: bool
     learn_skill_only_at_end: bool
+    skip_learn_skill: bool
     allow_recover_tp: bool
     cultivate_progress_info: dict
     extra_weight: list
@@ -61,9 +62,12 @@ class TaskDetail:
     spark_reroll_use_carats: bool
     # Independent Training loop: start the career on the Independent Training
     # tab of the Final Confirmation dialog instead of playing it turn by turn.
-    # The game remembers the Training Focus, Agenda and Prioritized Skills the
-    # user set by hand, so the bot only picks the tab and confirms.
+    # The game remembers the Training Focus and Prioritized Skills the user set
+    # by hand, so the bot only picks the tab and confirms.
     independent_training: bool
+    # Which "My Agendas" slot (1-8, counting from the top of the game's list)
+    # to load before each run; 0 leaves whatever schedule the game has.
+    independent_agenda: int
 
 
 class EndTaskReason(Enum):
@@ -125,6 +129,7 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.learn_skill_threshold = attachment_data['learn_skill_threshold']
     td.learn_skill_only_user_provided = attachment_data['learn_skill_only_user_provided']
     td.learn_skill_only_at_end = attachment_data.get('learn_skill_only_at_end', False)
+    td.skip_learn_skill = attachment_data.get('skip_learn_skill', False)
     td.allow_recover_tp = attachment_data['allow_recover_tp']
     td.extra_weight = attachment_data['extra_weight']
     td.spirit_explosion = attachment_data.get('spirit_explosion', [0.9, 0.9, 0.9, 0.5, 0.5])
@@ -200,6 +205,10 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.spark_reroll_mode = 'and' if attachment_data.get('spark_reroll_mode') == 'and' else 'or'
     td.spark_reroll_use_carats = bool(attachment_data.get('spark_reroll_use_carats', False))
     td.independent_training = bool(attachment_data.get('independent_training', False))
+    try:
+        td.independent_agenda = int(attachment_data.get('independent_agenda', 0) or 0)
+    except (TypeError, ValueError):
+        td.independent_agenda = 0
 
     ut.detail = td
     return ut

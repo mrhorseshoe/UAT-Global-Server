@@ -13,6 +13,13 @@ CULTIVATE_FINAL_CHECK_START = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDIN
 FINAL_CONFIRMATION_TAB_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(190, 216), "Final Confirmation - Normal Career tab")
 FINAL_CONFIRMATION_TAB_INDEPENDENT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(530, 216), "Final Confirmation - Independent Training tab")
 INDEPENDENT_TRAINING_RESULTS_OK = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1178), "Independent Training Results - OK")
+# Race agenda picker, reached from the Independent Training tab of the Final
+# Confirmation dialog: Edit -> My Agendas -> a slot's "Load List" -> Overwrite.
+AGENDA_EDIT = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(628, 614), "Final Confirmation - Edit Agenda")
+AGENDA_MY_AGENDAS = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(601, 1088), "Agenda - My Agendas")
+AGENDA_CLOSE = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 1182), "Agenda - Close")
+AGENDA_OVERWRITE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 918), "Agenda - Overwrite the current schedule")
+AGENDA_OVERWRITE_CANCEL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(202, 918), "Agenda - Cancel the overwrite")
 # "Choose Career Mode" dialog, shown while a trainer event is running
 CAREER_MODE_NORMAL = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(360, 225), "Choose Career Mode - Normal Mode")
 CAREER_MODE_CONFIRM = ClickPoint(ClickPointType.CLICK_POINT_TYPE_COORDINATE, None, Coordinate(517, 1182), "Choose Career Mode - Confirm")

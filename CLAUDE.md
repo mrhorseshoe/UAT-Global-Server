@@ -182,6 +182,8 @@ Two deliberate limits, in case they look like bugs:
   inherit URA's parsing — so they are greyed out unless Independent Training is
   ticked. A standard career there would need its own date/training parsing.
 
-Known small gap: the `'Career Complete'` dialog has no `TITLE` entry and gets
-through on the 0.6 fuzzy fallback landing on `'Training Complete'`. It works,
-but it is the same kind of coincidence that was removed elsewhere.
+`'Career Complete'` (the end-of-career "Return to the home screen?" prompt) now
+has its own `TITLE` entry and always clicks Cancel. It used to ride the 0.6
+fuzzy fallback onto `'Training Complete'`, which happened to click the same
+point; the trainer event reuses the dialog with the green button relabelled
+"Event Home", so the choice had to stop being a coincidence.
