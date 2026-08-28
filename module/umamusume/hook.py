@@ -129,6 +129,13 @@ def before_hook(ctx: UmamusumeContext):
         return
     
     if image_match(img, REF_HOME_GIFT).find_match:
+        # An Independent Training task resumes its run through the pending-run
+        # dialog, which script_info handles. Letting this branch press CAREER
+        # here opens that dialog mid-iteration, while ctx.current_ui still says
+        # Home - so the dispatch that follows clicks Home's CAREER point again,
+        # outside the dialog, and closes it. Leave Home to script_main_menu.
+        if getattr(getattr(ctx, 'cultivate_detail', None), 'independent_training', False):
+            return
         mode_name = ctx.task.task_execute_mode.name
         
         if mode_name == "TASK_EXECUTE_MODE_TEAM_TRIALS":
@@ -170,6 +177,9 @@ def before_hook(ctx: UmamusumeContext):
         
         time.sleep(1)
         img = cv2.cvtColor(ctx.ctrl.get_screen(), cv2.COLOR_BGR2GRAY)
+        if _is_independent_training_dialog(img):
+            log.info("Independent Training run pending - leaving the dialog for its handler")
+            return
         if image_match(img, REF_RESUME_CAREER).find_match:
             if mode_name == "TASK_EXECUTE_MODE_TEAM_TRIALS":
                 ctx.ctrl.click(710, 10, "skip resume career - TT mode")
@@ -180,6 +190,9 @@ def before_hook(ctx: UmamusumeContext):
         return
     
     if image_match(img, REF_RESUME_CAREER).find_match:
+        if _is_independent_training_dialog(img):
+            log.info("Independent Training run pending - leaving the dialog for its handler")
+            return
         mode_name = ctx.task.task_execute_mode.name
         if mode_name == "TASK_EXECUTE_MODE_TEAM_TRIALS":
             ctx.ctrl.click(710, 10, "skip resume career - TT mode")
@@ -189,6 +202,30 @@ def before_hook(ctx: UmamusumeContext):
             ctx.ctrl.click(505, 908, "continue resume career")
         return
 
+
+
+def _is_independent_training_dialog(img_gray) -> bool:
+    """True when the green-header dialog showing is the Independent Training
+    pending-run one rather than the game's resume-career dialog.
+
+    They are near-identical to REF_RESUME_CAREER - the pending dialog scores
+    0.999 against it - but its buttons sit about 75px higher, so the resume
+    click at (505,908) lands below them and dismisses the dialog. That is what
+    stopped the loop from ever re-entering a pending run after the game had
+    been restarted: the hook closed the dialog before any handler could act.
+    """
+    try:
+        from module.umamusume.asset.template import UI_INFO
+        from bot.recog.ocr import ocr_line
+        r = image_match(img_gray, UI_INFO)
+        if not r.find_match:
+            return False
+        pos = r.matched_area
+        title = ocr_line(img_gray[pos[0][1] - 5:pos[1][1] + 5,
+                                  pos[0][0] + 150:pos[1][0] + 405]) or ''
+        return 'independent training' in title.lower()
+    except Exception:
+        return False
 
 
 def after_hook(ctx: UmamusumeContext):

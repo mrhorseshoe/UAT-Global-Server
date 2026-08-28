@@ -325,15 +325,29 @@ def _script_independent_training_pending(ctx: UmamusumeContext, title_pos) -> No
     """
     from module.umamusume.script.cultivate_task.parse import find_green_button
 
+    detail = getattr(ctx, 'cultivate_detail', None)
+    tries = getattr(detail, 'pending_run_tries', 0) + 1
+    if detail is not None:
+        detail.pending_run_tries = tries
+    if tries > 20:
+        if tries % 20 == 0:
+            log.error("Independent Training run pending - still not entering after "
+                      f"{tries} attempts; the loop cannot proceed without it")
+        return
+
     ok = find_green_button(ctx.current_screen, 70, title_pos[1][1], 660, 1270)
-    if ok:
-        log.info("Independent Training run pending - entering it")
-        ctx.ctrl.click(ok[0], ok[1], "Enter the pending Independent Training run")
-    else:
+    if not ok:
         log.warning("Independent Training run pending - green button not found, "
                     "using the fixed point")
         ctx.ctrl.click_by_point(INDEPENDENT_TRAINING_PENDING_CAREER)
-    time.sleep(1)
+        time.sleep(1)
+        return
+
+    log.info(f"Independent Training run pending - entering it at {ok} (attempt {tries})")
+    ctx.ctrl.click(ok[0], ok[1], "Enter the pending Independent Training run")
+    # Let the entry animation finish before the next screenshot, so the run's
+    # own screens are what gets matched next.
+    time.sleep(4)
 
 
 def _script_agenda_overwrite(ctx: UmamusumeContext) -> None:
