@@ -52,13 +52,10 @@
                 </small>
               </div>
               <div class="form-group" v-if="selectedExecuteMode === 6 && !doTeamTrials && independentTraining">
-                <label for="selectIndependentAgenda">Race Agenda</label>
-                <select v-model.number="independentAgenda" class="form-control" id="selectIndependentAgenda">
-                  <option :value="0">Leave as-is (whatever the game has)</option>
-                  <option v-for="n in 8" :key="n" :value="n">Agenda {{ n }}</option>
-                </select>
+                <label for="inputIndependentAgendaName">Race Agenda</label>
+                <input v-model="independentAgendaName" type="text" class="form-control" id="inputIndependentAgendaName" placeholder="Name as shown in My Agendas, e.g. Fan">
                 <small class="text-muted">
-                  Loads a slot from the game's My Agendas list before every run, counted from the top of that list. Leave as-is to keep the schedule the game already has.
+                  Loads this entry from the game's My Agendas list before every run, matched against the names shown there. Leave blank to keep whatever schedule the game already has. If the name is not found the run starts on the existing schedule rather than loading the wrong agenda.
                 </small>
               </div>
               <div class="form-group" v-if="selectedExecuteMode === 6 && loopCount === 1 && !doTeamTrials">
@@ -2027,7 +2024,7 @@ export default {
       loopCount: 0,
       doTeamTrials: false,
       independentTraining: false,
-      independentAgenda: 0,
+      independentAgendaName: '',
       stopAtSparkReroll: false,
       sparkRerollEnabled: false,
       sparkRerollTargets: {}, // {sparkName: minStars}
@@ -3322,7 +3319,7 @@ export default {
           "spark_reroll_use_carats": this.sparkRerollUseCarats,
           // Independent Training loop: only in loop mode without team trials
           "independent_training": (this.selectedExecuteMode === 6 && !this.doTeamTrials) ? this.independentTraining : false,
-          "independent_agenda": this.independentTraining ? this.independentAgenda : 0,
+          "independent_agenda_name": this.independentTraining ? (this.independentAgendaName || '').trim() : '',
           "cure_asap_conditions": this.cureAsapConditions,
           "expect_attribute": [this.expectSpeedValue, this.expectStaminaValue, this.expectPowerValue, this.expectWillValue, this.expectIntelligenceValue],
           "follow_support_card_name": this.selectedSupportCard.name,

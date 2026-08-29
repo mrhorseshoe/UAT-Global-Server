@@ -149,21 +149,14 @@ def _choose_career_mode(ctx: UmamusumeContext) -> None:
 AGENDA_MAX_STEPS = 24
 
 
-def _agenda_wanted(ctx) -> int:
-    """Which My Agendas slot this task wants loaded (1-8); 0 leaves the game's
-    own schedule alone, which is what every task saved before this setting
-    existed does."""
-    from module.umamusume.script.cultivate_task.parse import AGENDA_SLOT_COUNT
-    # Same place _final_confirmation reads independent_training from; the task
-    # detail is the fallback for a context built before this setting existed.
-    n = getattr(getattr(ctx, 'cultivate_detail', None), 'independent_agenda', None)
+def _agenda_wanted_name(ctx) -> str:
+    """The My Agendas entry this task wants loaded, by the name shown on its
+    row. Empty leaves whatever schedule the game has, which is what every task
+    saved before this setting existed does."""
+    n = getattr(getattr(ctx, 'cultivate_detail', None), 'independent_agenda_name', None)
     if n is None:
-        n = getattr(getattr(ctx.task, 'detail', None), 'independent_agenda', 0)
-    try:
-        n = int(n or 0)
-    except (TypeError, ValueError):
-        return 0
-    return n if 1 <= n <= AGENDA_SLOT_COUNT else 0
+        n = getattr(getattr(ctx.task, 'detail', None), 'independent_agenda_name', '')
+    return str(n or '').strip()
 
 
 def _agenda_phase(ctx) -> str:
@@ -253,14 +246,22 @@ def _script_agenda(ctx: UmamusumeContext) -> None:
 
 
 def _script_my_agendas(ctx: UmamusumeContext) -> None:
-    """The 8 saved agenda slots, three visible at a time. Scroll until the
-    wanted slot is on screen, then click its Load List."""
-    from module.umamusume.script.cultivate_task.parse import (
-        agenda_first_visible_row, agenda_load_buttons)
+    """The saved agenda slots, three visible at a time. Scroll the list until a
+    row's name matches the one the task asks for, then click its Load List.
 
-    want = _agenda_wanted(ctx)
+    Matching by name rather than by position is deliberate: the list's order is
+    not ours to control, and picking row 1 for fifteen careers loaded a
+    four-race agenda nobody wanted. If the name is nowhere in the list, nothing
+    is loaded at all.
+    """
+    from module.umamusume.script.cultivate_task.parse import (
+        agenda_first_visible_row, agenda_load_buttons, agenda_row_names,
+        AGENDA_SLOT_COUNT)
+    from bot.recog.ocr import find_similar_text
+
+    want_name = _agenda_wanted_name(ctx)
     phase = _agenda_phase(ctx)
-    if want and phase == 'load_clicked':
+    if want_name and phase == 'load_clicked':
         # Same gap as on the editor: the row has been clicked and the dialog is
         # on its way. Waiting beats closing the list and starting over.
         if _agenda_wait(ctx):
@@ -270,7 +271,7 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
         log.warning("Agenda load click did not take - trying the row again")
         _agenda_set_phase(ctx, 'list')
         return
-    if not want or phase != 'list':
+    if not want_name or phase != 'list':
         log.info(f"Agenda list with nothing in flight (phase {phase!r}) - closing it")
         ctx.ctrl.click_by_point(AGENDA_CLOSE)
         time.sleep(1)
@@ -279,35 +280,72 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
         ctx.ctrl.click_by_point(AGENDA_CLOSE)
         return
 
+    detail = getattr(ctx, 'cultivate_detail', None)
     screen = ctx.ctrl.get_screen()
     first = agenda_first_visible_row(screen)
     buttons = agenda_load_buttons(screen)
-    if first is None or not buttons:
-        log.warning("Agenda list: could not read the scrollbar or the buttons - "
-                    "nudging the list and retrying")
+    if not buttons:
+        log.warning("Agenda list: no Load List buttons found - nudging the list "
+                    "and retrying")
         ctx.ctrl.swipe(x1=360, y1=950, x2=360, y2=730, duration=600, name="agenda list")
         return
+    # Only for numbering rows in the log; matching goes by name.
+    first = first if first is not None else 1
 
-    index = want - first  # position of the wanted slot among the visible rows
-    if 0 <= index < len(buttons):
+    names = agenda_row_names(screen, buttons)
+    log.info(f"Agenda list rows {first}..{first + len(buttons) - 1}: "
+             f"{[n for n in names]}")
+    readable = [(i, n) for i, n in enumerate(names) if n]
+    # An exact name wins outright, ignoring case; fuzzy is only the fallback for
+    # OCR slips. Without that, 'Fan' scores 0.600 against 'Fantasy' - right on
+    # the threshold - and 0.667 against its own row spelled 'fan'.
+    norm = want_name.strip().lower()
+    index, hit = None, ''
+    for i, n in readable:
+        if n.strip().lower() == norm:
+            index, hit = i, n
+            break
+    if index is None and readable:
+        lowered = [n.strip().lower() for _, n in readable]
+        near = find_similar_text(norm, lowered, 0.6)
+        if near:
+            pos = lowered.index(near)
+            index, hit = readable[pos]
+    if index is not None:
         x, y = buttons[index]
-        log.info(f"Agenda {want}: loading it (row {index + 1} of {len(buttons)} on "
-                 f"screen, list starts at slot {first})")
+        log.info(f"Agenda '{want_name}': matched row {first + index} "
+                 f"named '{hit}' - loading it")
         _agenda_set_phase(ctx, 'load_clicked')
-        ctx.ctrl.click(x, y, f"Load agenda {want}")
+        ctx.ctrl.click(x, y, f"Load agenda '{hit}'")
         time.sleep(1)
         return
-
-    # Off screen. A row is ~220px; scroll at most two at a time and stay inside
-    # the list so the swipe cannot end on Close.
-    if index >= len(buttons):
-        step = min(2, index - len(buttons) + 1)
-        y1, y2 = 950, 950 - 220 * step
+    seen = getattr(detail, 'agenda_names_seen', set()) if detail is not None else set()
+    seen = set(seen) | {n for _, n in readable}
+    if detail is not None:
+        detail.agenda_names_seen = seen
+    # Walk down the list; one full pass without a hit means the name is not
+    # there. Counting names alone would never do: the row scrolled part way
+    # off the top is unreadable, so the set can sit one short forever.
+    wraps = getattr(detail, 'agenda_scan_wraps', 0) if detail is not None else 0
+    at_bottom = first + len(buttons) - 1 >= AGENDA_SLOT_COUNT
+    if wraps >= 1 or (at_bottom and len(seen) >= AGENDA_SLOT_COUNT - 1):
+        log.error(f"Agenda '{want_name}' is not in the list ({sorted(seen)}) - "
+                  "starting the run on the schedule the game has rather than "
+                  "loading the wrong agenda")
+        _agenda_set_phase(ctx, 'done')
+        ctx.ctrl.click_by_point(AGENDA_CLOSE)
+        time.sleep(1)
+        return
+    if at_bottom:
+        if detail is not None:
+            detail.agenda_scan_wraps = wraps + 1
+        log.info(f"Agenda '{want_name}': not found by the bottom - back to the top")
+        ctx.ctrl.swipe(x1=360, y1=500, x2=360, y2=940, duration=600, name="agenda list")
     else:
-        step = max(-2, index)
-        y1, y2 = 500, 500 - 220 * step
-    log.info(f"Agenda {want}: list starts at slot {first}, scrolling {step:+d} row(s)")
-    ctx.ctrl.swipe(x1=360, y1=y1, x2=360, y2=y2, duration=600, name="agenda list")
+        log.info(f"Agenda '{want_name}': not in rows {first}.."
+                 f"{first + len(buttons) - 1} - scrolling down")
+        ctx.ctrl.swipe(x1=360, y1=950, x2=360, y2=510, duration=600, name="agenda list")
+    return
 
 
 def _script_independent_training_pending(ctx: UmamusumeContext, title_pos) -> None:
@@ -359,7 +397,7 @@ def _script_agenda_overwrite(ctx: UmamusumeContext) -> None:
         ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CANCEL)
         time.sleep(1)
         return
-    log.info(f"Agenda {_agenda_wanted(ctx)}: confirming the overwrite")
+    log.info(f"Agenda '{_agenda_wanted_name(ctx)}': confirming the overwrite")
     _agenda_set_phase(ctx, 'loaded')
     ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CONFIRM)
     time.sleep(1)
@@ -402,14 +440,28 @@ def _final_confirmation(ctx: UmamusumeContext) -> None:
     # starting. The Agenda block lives on this tab, and loading is idempotent -
     # the game replaces the user-race set, so re-applying the same slot every
     # run does not stack races.
-    want_agenda = _agenda_wanted(ctx)
-    if want_agenda and on_independent and _agenda_phase(ctx) != 'done':
+    want_name = _agenda_wanted_name(ctx)
+    if want_name and on_independent and _agenda_phase(ctx) != 'done':
         if _agenda_step(ctx):
-            log.info(f"Career start: loading agenda {want_agenda} before starting")
+            log.info(f"Career start: loading agenda '{want_name}' before starting")
             _agenda_set_phase(ctx, 'opening')
             ctx.ctrl.click_by_point(AGENDA_EDIT)
             time.sleep(1)
             return
+
+    if on_independent:
+        # Say what this run actually starts with. The agenda picker can load the
+        # wrong entry without any error - the only visible sign is these counts.
+        try:
+            from module.umamusume.script.cultivate_task.parse import agenda_schedule_counts
+            counts = agenda_schedule_counts(ctx.current_screen)
+            if counts:
+                log.info(f"Starting with {counts['scheduled']} scheduled races "
+                         f"(G1 {counts['g1']}, G2 {counts['g2']}, G3 {counts['g3']})")
+            else:
+                log.warning("Could not read the scheduled race counts off the start dialog")
+        except Exception as e:
+            log.warning(f"Could not read the scheduled race counts: {e}")
 
     log.info(f"Career start: confirming on the "
              f"{'Independent Training' if on_independent else 'Normal Career'} tab")

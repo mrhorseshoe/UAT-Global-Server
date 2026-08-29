@@ -43,7 +43,7 @@ class CultivateContextDetail:
     user_provided_priority: bool
     use_last_parents: bool
     independent_training: bool
-    independent_agenda: int
+    independent_agenda_name: str
     pal_event_stage: int
     pal_name: str
     pal_friendship_score: list[float]
@@ -80,7 +80,7 @@ class CultivateContextDetail:
         self.event_overrides = {}
         self.use_last_parents = False
         self.independent_training = False
-        self.independent_agenda = 0
+        self.independent_agenda_name = ''
         self.agenda_phase = ''
         self.agenda_steps = 0
         self.agenda_waits = 0
@@ -178,10 +178,8 @@ def build_context(task: UmamusumeTask, ctrl) -> UmamusumeContext:
         detail.compensate_failure = getattr(task.detail, 'compensate_failure', True)
         detail.use_last_parents = getattr(task.detail, 'use_last_parents', False)
         detail.independent_training = getattr(task.detail, 'independent_training', False)
-        try:
-            detail.independent_agenda = int(getattr(task.detail, 'independent_agenda', 0) or 0)
-        except (TypeError, ValueError):
-            detail.independent_agenda = 0
+        detail.independent_agenda_name = str(
+            getattr(task.detail, 'independent_agenda_name', '') or '').strip()
         detail.summer_score_threshold = float(getattr(task.detail, 'summer_score_threshold', 0.34))
         detail.wit_fallback_threshold = float(getattr(task.detail, 'wit_fallback_threshold', 0.01))
         # Event overrides

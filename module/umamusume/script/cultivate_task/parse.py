@@ -1519,6 +1519,48 @@ def agenda_first_visible_row(origin_img):
     return None
 
 
+# Where the start dialog prints what is actually scheduled. Logging these is
+# the difference between noticing a wrong agenda on the first career and
+# noticing it fifteen careers later.
+AGENDA_COUNT_REGIONS = {
+    'scheduled': (768, 812, 40, 260),
+    'g1': (652, 690, 495, 615),
+    'g2': (688, 726, 495, 615),
+    'g3': (724, 762, 495, 615),
+}
+
+
+def agenda_schedule_counts(origin_img):
+    """The Scheduled / G1 / G2 / G3 numbers from the career start dialog, or
+    None if any of them cannot be read."""
+    gray = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
+    out = {}
+    for key, (y0, y1, x0, x1) in AGENDA_COUNT_REGIONS.items():
+        text = (ocr_line(gray[y0:y1, x0:x1]) or '').strip().lower()
+        digits = re.sub(r'\D', '', re.sub(r'^(scheduled|g[123])', '', text))
+        if not digits:
+            return None
+        out[key] = int(digits)
+    return out
+
+
+def agenda_row_names(origin_img, buttons):
+    """OCR the green name banner of each visible row, given its Load List
+    button. The banner sits about 127px above the button; a row scrolled part
+    way off the top reads badly, so anything whose banner is above the list
+    viewport comes back as '' and the caller should scroll rather than guess."""
+    names = []
+    top = AGENDA_LIST_SCAN[0]
+    gray = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
+    for _, by in buttons:
+        band_top, band_bot = by - 145, by - 110
+        if band_top < top:
+            names.append('')
+            continue
+        names.append((ocr_line(gray[band_top:band_bot, 45:520]) or '').strip())
+    return names
+
+
 def agenda_load_buttons(origin_img):
     """Centres of the visible green "Load List" buttons, top to bottom."""
     x1, y1, x2, y2 = 520, AGENDA_LIST_SCAN[0], 700, AGENDA_LIST_SCAN[1]
