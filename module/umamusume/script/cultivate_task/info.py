@@ -296,18 +296,29 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
     log.info(f"Agenda list rows {first}..{first + len(buttons) - 1}: "
              f"{[n for n in names]}")
     readable = [(i, n) for i, n in enumerate(names) if n]
-    # An exact name wins outright, ignoring case; fuzzy is only the fallback for
-    # OCR slips. Without that, 'Fan' scores 0.600 against 'Fantasy' - right on
-    # the threshold - and 0.667 against its own row spelled 'fan'.
+    # Matching has to cope with the game truncating long names on the row
+    # banner ('Taiki Secretariat' shows as 'Taiki Secr') without letting a
+    # short name grab a longer row: asking for 'taiki' once matched
+    # 'Taiki Secr' at 0.667, loading the wrong agenda. So:
+    #   1. an exact name wins, ignoring case;
+    #   2. otherwise a row whose displayed name is the start of the wanted one
+    #      is a truncation - take the longest such row, since 'Taiki Secr'
+    #      beats 'taiki' for 'Taiki Secretariat';
+    #   3. otherwise only a close fuzzy match, for OCR slips.
     norm = want_name.strip().lower()
     index, hit = None, ''
     for i, n in readable:
         if n.strip().lower() == norm:
             index, hit = i, n
             break
+    if index is None:
+        prefixes = [(len(n.strip()), i, n) for i, n in readable
+                    if n.strip() and norm.startswith(n.strip().lower())]
+        if prefixes:
+            _, index, hit = max(prefixes)
     if index is None and readable:
         lowered = [n.strip().lower() for _, n in readable]
-        near = find_similar_text(norm, lowered, 0.6)
+        near = find_similar_text(norm, lowered, 0.85)
         if near:
             pos = lowered.index(near)
             index, hit = readable[pos]

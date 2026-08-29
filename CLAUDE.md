@@ -93,11 +93,16 @@ declared later, which wins, so every watcher in that component is dead code. Use
 reviving the dormant watchers does, since they have never run).
 
 **Several UI templates are crops of buttons, so they match wherever that button
-appears.** `MAIN_MENU` is a crop of the CAREER button, which also sits on event
-hub pages — the bot matched a hub as Home, clicked the fixed Home coordinate,
-hit empty space, and looped until the click guard restarted the game onto the
-same page. Handlers for such screens should click where the match was found
-(`image_match(...).center_point`) rather than a hardcoded point.
+appears** — and button art is not stable. `MAIN_MENU` used to be a crop of the
+CAREER button, which also sits on event hub pages, so the bot matched a hub as
+Home and looped on a hardcoded coordinate. Worse, that button's art rotates
+with in-game events (one chibi and dumbbells, then two Champions Meeting
+characters), and the lettering moves with it: no single crop matches two
+rotations, and twice in one week the bot could not find Home at all. `MAIN_MENU`
+is now a crop of the **bottom nav Home tab**, which does not change (0.96+ on
+both rotations, under 0.55 elsewhere), and `script_main_menu` locates CAREER by
+colour with `find_green_button`. Prefer a stable anchor plus a colour or
+position search over a template of decorated art.
 
 **Trainer events (a few times a year) rewrite the career start path.** While one
 runs, a "Choose Career Mode" dialog appears between the scenario and trainee

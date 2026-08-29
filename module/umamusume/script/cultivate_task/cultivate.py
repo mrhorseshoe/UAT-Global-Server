@@ -1218,21 +1218,40 @@ def script_main_menu(ctx: UmamusumeContext):
         else:
             ctx.task.end_task(TaskStatus.TASK_STATUS_SUCCESS, EndTaskReason.COMPLETE)
             return
-    # This screen is recognised by the CAREER button itself, and event hubs
-    # (the Trainer Aptitude Test page, which the game reopens on) carry the
-    # same button in a different place. Clicking the fixed Home coordinate
-    # there hits empty space, and the bot taps it until the repetitive-click
-    # guard restarts the game - straight back onto the event page. Click the
-    # button where it was actually found.
+    # A new career begins here, so forget what the agenda picker did for the
+    # last one. Its state lives on cultivate_detail, which belongs to the task:
+    # normally the process soft-restarts between careers and rebuilds it, but
+    # when a career ends without the task ending, a stale 'done' makes the next
+    # career skip the agenda and start on the game's default schedule.
+    detail = getattr(ctx, 'cultivate_detail', None)
+    if detail is not None and getattr(detail, 'agenda_phase', ''):
+        log.info("New career - resetting the agenda picker")
+        detail.agenda_phase = ''
+        detail.agenda_steps = 0
+        detail.agenda_waits = 0
+        detail.agenda_names_seen = set()
+        detail.agenda_scan_wraps = 0
+
+    # Home is recognised by the bottom nav tab, not by the CAREER button: that
+    # button's art rotates with in-game events - one chibi and dumbbells one
+    # day, two Champions Meeting characters the next - and the lettering moves
+    # with it, so no crop of it matches both. Twice this week a rotation left
+    # the bot unable to find Home at all.
+    #
+    # CAREER is then located by colour, the way the agenda flow finds its own
+    # green buttons. That keeps the old behaviour of clicking the button where
+    # it actually is, which matters on event hub pages that carry it elsewhere.
     try:
         img = ctx.current_screen if ctx.current_screen is not None else ctx.ctrl.get_screen()
-        found = image_match(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), UI_MAIN_MENU)
-        if found.find_match:
-            ctx.ctrl.click(found.center_point[0], found.center_point[1],
-                           "Go to Scenario Selection")
+        from module.umamusume.script.cultivate_task.parse import find_green_button
+        btn = find_green_button(img, 380, 1020, 715, 1160)
+        if btn:
+            ctx.ctrl.click(btn[0], btn[1], "Go to Scenario Selection")
             return
-    except Exception:
-        pass
+        log.warning("Home: could not find the CAREER button by colour - "
+                    "using the fixed point")
+    except Exception as e:
+        log.warning(f"Home: CAREER button search failed ({e}) - using the fixed point")
     ctx.ctrl.click_by_point(TO_CULTIVATE_SCENARIO_CHOOSE)
 
 
