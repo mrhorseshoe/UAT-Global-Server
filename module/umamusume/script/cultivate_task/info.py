@@ -99,6 +99,7 @@ TITLE = [
     "My Agendas", ##the 8 saved agenda slots # TITLE[53]
     "Overwrite", ##confirms loading a saved agenda over the current schedule # TITLE[54]
     "Independent Training", ##a run is pending; CAREER on Home opens this # TITLE[55]
+    "Perks", ##not a dialog at all - see the handler # TITLE[56]
 ]
 
 
@@ -698,6 +699,15 @@ def script_info(ctx: UmamusumeContext):
             log.info("Event start dialog - backing out to keep the career loop on Normal Mode")
             ctx.ctrl.click_by_point(ESCAPE)
             time.sleep(1)
+            return
+        if title_text == TITLE[56]:  # Perks - not a dialog
+            # "Perks" is a button on the Support Formation screen, next to
+            # Start Career!, not a dialog. On transition frames something green
+            # there matches the INFO header and the title strip to its right
+            # reads the button, so script_info is handed a screen that has no
+            # dialog on it. Do nothing: the blind fallback would otherwise tap
+            # a live screen twice per career start. The settled screen does not
+            # match INFO, which is why this only fires in passing.
             return
         if title_text == TITLE[55]:  # Independent Training run pending
             _script_independent_training_pending(ctx, pos)
