@@ -167,28 +167,82 @@ restart, so a long-running career is running whatever code it started with.
 - Match the surrounding code; much of it is inherited from an upstream CN project
   and still has Chinese comments.
 
-## Where things stand (Aug 2026)
+## Where things stand (31 Aug 2026)
 
 `origin` is the owner's fork (`mrhorseshoe/UAT-Global-Server`) and is the only
 place to push; `upstream` is the original project, which is abandoned and
 rejects pushes.
 
-The current line of work is the branch **`feat/independent-training`** (pushed,
-not merged into `main`): the Independent Training loop, the two new scenarios,
-durable task storage, the spark partial-read retry, and the trainer-event
-failsafe. It has run unattended for a dozen careers in a row, so treat it as
-working and be suspicious of regressions rather than rebuilding it.
+**`main` is current and fully pushed** (`f5df06d`). The Independent Training
+work — the loop, the two new scenarios, durable task storage, the spark
+partial-read retry, the trainer-event failsafe and the agenda picker — is all
+merged into it; `feat/independent-training` is now contained in `main` and is
+only a historical branch. The loop has run more than a dozen careers unattended,
+so treat it as working and be suspicious of regressions rather than rebuilding
+it.
 
-Two deliberate limits, in case they look like bugs:
+Three other local branches are **not** on the fork: `grand-concert` (2 unpushed
+commits, Phase 1 of a career that completes and buys nothing),
+`extreme-spirit-burst`, and `backup/pre-amend-1430`. None is in `main`.
+
+The last verified state: ten consecutive careers, nine of them logging
+`Starting with 47 scheduled races (G1 23, G2 11, G3 11)` — the correct agenda —
+with three unattended recoveries (twice from the pending-run dialog after a game
+restart, once from a mid-run watchdog restart with the career intact). The loop
+was then stopped deliberately by the user's own stop-after-run.
+
+Deliberate limits, in case they look like bugs:
 
 - The bot always declines the event career and picks Normal Mode; running an
   event career would need a task setting that does not exist yet.
 - Trackblazer and Grand Concert are selectable only — their scenario classes
   inherit URA's parsing — so they are greyed out unless Independent Training is
   ticked. A standard career there would need its own date/training parsing.
+- Agenda selection is by **name only**. Selection by slot number existed, was
+  the thing that silently loaded the wrong agenda for fifteen careers, and was
+  removed rather than kept as a fallback. A task carrying the old numeric
+  setting loads no agenda instead of quietly loading row 1.
 
 `'Career Complete'` (the end-of-career "Return to the home screen?" prompt) now
 has its own `TITLE` entry and always clicks Cancel. It used to ride the 0.6
 fuzzy fallback onto `'Training Complete'`, which happened to click the same
 point; the trainer event reuses the dialog with the green button relabelled
 "Event Home", so the choice had to stop being a coincidence.
+
+## Open threads (deferred by the user, not forgotten)
+
+Listed in `README.md` under "Known rough edges" for users; here is what a next
+session needs to actually work on them.
+
+1. **The `Perks` false dialog match.** `script_info` OCRs `'Perks'` on the
+   Support Formation screen and logs `Unknown option box`. It is *not*
+   transient: when the bot lingers there (TP too low to leave) it matched 116
+   times in ninety seconds. **Do not replace the fallback with a no-op** — that
+   was tried in `294c6f2` and hung the bot on its first run, reverted in
+   `f5df06d`; the blind ESCAPE click is what advances that screen. Diagnose by
+   dumping the frame *and the matched region* from inside `script_info` while
+   the bot is on that screen, then either add a `check_non_exist` template or
+   give the title a real action.
+2. **Watchdog restarts mid-run.** The 30 s freeze watchdog in `executor.py`
+   fired three times in one night (18:48, 19:17, 01:25) during Independent
+   Training countdowns. Suspected cause: the downscaled countdown frame changes
+   less than the threshold of 1.0. Measure that screen's real score before
+   touching the threshold — the idle Home screen scores 5-25 on the same check.
+3. **The agenda first-click retry.** The first Load List click of a run does not
+   take; the flow reopens the list and clicks again, costing ~10 s. Three
+   hypotheses (transient flicker, swipe-vs-tap, enters-then-backs-out) were each
+   disproved by measurement. Low value — it works — but the cause is unknown.
+
+## Lessons this repo paid for
+
+- **Never kill the bot process mid-run.** Doing so destroyed the user's task
+  definition: `saved_tasks.json` became `[]` and was unrecoverable. Use
+  `POST /action/bot/stop` and let the run finish.
+- **Absence of evidence is not evidence of absence.** The Perks no-op shipped on
+  "it's transient", concluded from frames where the thing simply had not
+  happened yet, and never looked for in the bot's own flow — which is the one
+  place it occurs.
+- **Verify monitoring before trusting it.** A log-following monitor read files
+  created by my own test scripts in `userdata/logs/` as bot restarts, and a
+  process filter matched its own command line. Both produced confident, wrong
+  reports.
