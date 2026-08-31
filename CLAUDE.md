@@ -181,9 +181,17 @@ only a historical branch. The loop has run more than a dozen careers unattended,
 so treat it as working and be suspicious of regressions rather than rebuilding
 it.
 
-Three other local branches are **not** on the fork: `grand-concert` (2 unpushed
-commits, Phase 1 of a career that completes and buys nothing),
-`extreme-spirit-burst`, and `backup/pre-amend-1430`. None is in `main`.
+One local branch is **not** on the fork: `grand-concert`, 2 unpushed commits
+holding Phase 1 of a career that completes and buys nothing. The owner declared
+it **abandoned on 31 Aug 2026** — Independent Training does that job now — but
+asked to keep it rather than delete it. Do not build on it, and do not delete
+it. Note its two commits exist only on this machine.
+
+`extreme-spirit-burst` and `backup/pre-amend-1430` were deleted the same day
+after `git cherry` confirmed every commit in them was already applied to `main`
+under a different SHA (rebased or cherry-picked, so `git rev-list` counted them
+as "ahead" when the content had in fact landed). If either is ever needed:
+`extreme-spirit-burst` was `44353ac`, `backup/pre-amend-1430` was `87ce794`.
 
 The last verified state: ten consecutive careers, nine of them logging
 `Starting with 47 scheduled races (G1 23, G2 11, G3 11)` — the correct agenda —
