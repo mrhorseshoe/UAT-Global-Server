@@ -13,7 +13,7 @@ All changes below were added on top of the upstream project.
 
 ## Independent Training
 
-The August 2026 Global update added Independent Training: you set a Training Focus and race Agenda, start the career, and the game plays it out on its own over about 50 real-time minutes for 15 TP, then hands you the usual end-of-career screens.
+The August 2026 Global update added Independent Training: you set a Training Focus and race Agenda, start the career, and the game plays it out on its own over about 50 real-time minutes for 30 TP, then hands you the usual end-of-career screens.
 
 1. **Independent Training loop** — a tickbox in the General section (Loop mode, not compatible with Team Trials). The bot walks the normal preparation flow (scenario, trainee, legacy, borrowed support card), picks the **Independent Training** tab on the Final Confirmation dialog, starts the run, waits out the countdown, dismisses the training log when it finishes, and then buys skills and rerolls sparks exactly as it does for a normal career — before looping into the next run. Set the Training Focus, Agenda and Prioritized Skills yourself once; the game remembers them, so the bot only picks the tab and confirms.
 2. **Career start dialog handled properly** — the Final Confirmation dialog had no handler on Global: its `CULTIVATE_FINAL_CHECK` template is the Chinese *最终确认* inherited from the upstream CN project and never matches, so the dialog fell through to the generic dialog handler, where "Final Confirmation" fuzzy-matched "Factor Confirmation" and landed on Start by coincidence. It is now matched by name, and the bot checks which of the two tabs is selected before starting. That matters because the game remembers the last tab used — without the check, a normal Career task would silently start Independent Training runs, or the reverse.
@@ -32,7 +32,9 @@ The August 2026 Global update added Independent Training: you set a Training Foc
    That line is how you tell a correct agenda load from a silent miss without watching the screen.
 8. **A run left pending is resumed, not restarted** — if the game or emulator restarts mid-run, pressing CAREER on Home raises an *Independent Training* dialog holding the outstanding career. The bot now recognises it and enters the run, locating the green Career button by colour so the neighbouring **Delete Data** button — which throws the career away — can never be the target.
 
-**TP budget matters.** A run costs 15 TP and regenerates only ~8 over its 50 minutes, so a loop ends each cycle poorer than it started, and a spark reroll costs 30 TP. Hunting sparks across a long loop therefore needs "Spend carats to restore TP" enabled (a separate setting from auto-recovering TP to start a career), or a banked TP bar.
+**TP budget matters.** A run costs **30 TP** and regenerates only ~8 over its 50 minutes, so each cycle ends about 22 TP down and a loop cannot sustain itself on its own income — it runs off a banked TP bar until that bar is empty. A spark reroll costs another 30 TP, a whole run's worth, so hunting sparks across a long loop effectively doubles the bill and needs "Spend carats to restore TP" enabled (a separate setting from auto-recovering TP to start a career).
+
+Note the 30 TP figure if you meet an older log or note quoting 15: the cost was halved temporarily for an in-game event, and 30 TP is the standing rate.
 
 ## Unity Cup 2.0
 
