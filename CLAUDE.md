@@ -181,11 +181,13 @@ only a historical branch. The loop has run more than a dozen careers unattended,
 so treat it as working and be suspicious of regressions rather than rebuilding
 it.
 
-One local branch is **not** on the fork: `grand-concert`, 2 unpushed commits
-holding Phase 1 of a career that completes and buys nothing. The owner declared
-it **abandoned on 31 Aug 2026** — Independent Training does that job now — but
-asked to keep it rather than delete it. Do not build on it, and do not delete
-it. Note its two commits exist only on this machine.
+`grand-concert` holds Phase 1 of a career that completes and buys nothing. The
+owner declared it **abandoned on 31 Aug 2026** — Independent Training does that
+job now — but asked to keep it, and it is pushed to the fork. Do not build on
+it, and do not delete it.
+
+All three branches (`main`, `feat/independent-training`, `grand-concert`) are
+in sync with `origin`. Nothing lives only on this machine.
 
 `extreme-spirit-burst` and `backup/pre-amend-1430` were deleted the same day
 after `git cherry` confirmed every commit in them was already applied to `main`
@@ -196,8 +198,14 @@ as "ahead" when the content had in fact landed). If either is ever needed:
 The last verified state: ten consecutive careers, nine of them logging
 `Starting with 47 scheduled races (G1 23, G2 11, G3 11)` — the correct agenda —
 with three unattended recoveries (twice from the pending-run dialog after a game
-restart, once from a mid-run watchdog restart with the career intact). The loop
-was then stopped deliberately by the user's own stop-after-run.
+restart, once from a mid-run watchdog restart with the career intact).
+
+**At handoff (31 Aug, 02:31) the bot is running**, not stopped: a fresh
+Independent Training career began at 02:30:46 on the `Fan` agenda with 47
+scheduled races, due to finish around 03:20. The single saved task is
+`eyfng1788042309` (Independent Training on, agenda `Fan`, skip-skills on). If it
+needs stopping, use `POST /action/bot/stop` — see [[bot-stop-never-kill]] in the
+session memory for why killing the process is not an option.
 
 Deliberate limits, in case they look like bugs:
 
