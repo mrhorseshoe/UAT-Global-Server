@@ -149,16 +149,6 @@ def _choose_career_mode(ctx: UmamusumeContext) -> None:
 AGENDA_MAX_STEPS = 24
 
 
-def _agenda_wanted_name(ctx) -> str:
-    """The My Agendas entry this task wants loaded, by the name shown on its
-    row. Empty leaves whatever schedule the game has, which is what every task
-    saved before this setting existed does."""
-    n = getattr(getattr(ctx, 'cultivate_detail', None), 'independent_agenda_name', None)
-    if n is None:
-        n = getattr(getattr(ctx.task, 'detail', None), 'independent_agenda_name', '')
-    return str(n or '').strip()
-
-
 def _agenda_phase(ctx) -> str:
     return getattr(getattr(ctx, 'cultivate_detail', None), 'agenda_phase', '')
 
@@ -246,24 +236,28 @@ def _script_agenda(ctx: UmamusumeContext) -> None:
 
 
 def _script_my_agendas(ctx: UmamusumeContext) -> None:
-    """The saved agenda slots, three visible at a time. Scroll the list until a
-    row's name matches the one the task asks for, then click its Load List.
+    """The saved agenda slots, three visible at a time. Scroll to the top of
+    the list and load row 1.
 
-    Matching by name rather than by position is deliberate: the list's order is
-    not ours to control, and picking row 1 for fifteen careers loaded a
-    four-race agenda nobody wanted. If the name is nowhere in the list, nothing
-    is loaded at all.
+    Row 1 is the whole selection rule: the user copies the agenda they want
+    into the first slot. Reading the row names and matching them is gone, and
+    with it every way OCR could pick the wrong row.
+
+    What broke when this was last done by position was not the position. It
+    was clicking the topmost *visible* row without knowing which row that was:
+    the list opens wherever it was left, so the top button is only row 1 when
+    the list is scrolled to the top. So the scrollbar is read first and nothing
+    is clicked until it says row 1 is on top. If it cannot be read, nothing is
+    loaded and the run starts on the schedule the game already has, because
+    silently loading some other agenda is the failure this has to avoid.
     """
     from module.umamusume.script.cultivate_task.parse import (
-        agenda_first_visible_row, agenda_load_buttons, agenda_row_names,
-        AGENDA_SLOT_COUNT)
-    from bot.recog.ocr import find_similar_text
+        agenda_first_visible_row, agenda_load_buttons, agenda_row_names)
 
-    want_name = _agenda_wanted_name(ctx)
     phase = _agenda_phase(ctx)
-    if want_name and phase == 'load_clicked':
-        # Same gap as on the editor: the row has been clicked and the dialog is
-        # on its way. Waiting beats closing the list and starting over.
+    if phase == 'load_clicked':
+        # The row has been clicked and the overwrite dialog is on its way.
+        # Waiting beats closing the list and starting over.
         if _agenda_wait(ctx):
             log.info("Agenda list still up after the load click - waiting for the "
                      "overwrite dialog")
@@ -271,7 +265,7 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
         log.warning("Agenda load click did not take - trying the row again")
         _agenda_set_phase(ctx, 'list')
         return
-    if not want_name or phase != 'list':
+    if phase != 'list':
         log.info(f"Agenda list with nothing in flight (phase {phase!r}) - closing it")
         ctx.ctrl.click_by_point(AGENDA_CLOSE)
         time.sleep(1)
@@ -280,83 +274,37 @@ def _script_my_agendas(ctx: UmamusumeContext) -> None:
         ctx.ctrl.click_by_point(AGENDA_CLOSE)
         return
 
-    detail = getattr(ctx, 'cultivate_detail', None)
     screen = ctx.ctrl.get_screen()
-    first = agenda_first_visible_row(screen)
     buttons = agenda_load_buttons(screen)
     if not buttons:
         log.warning("Agenda list: no Load List buttons found - nudging the list "
                     "and retrying")
         ctx.ctrl.swipe(x1=360, y1=950, x2=360, y2=730, duration=600, name="agenda list")
         return
-    # Only for numbering rows in the log; matching goes by name.
-    first = first if first is not None else 1
 
-    names = agenda_row_names(screen, buttons)
-    log.info(f"Agenda list rows {first}..{first + len(buttons) - 1}: "
-             f"{[n for n in names]}")
-    readable = [(i, n) for i, n in enumerate(names) if n]
-    # Matching has to cope with the game truncating long names on the row
-    # banner ('Taiki Secretariat' shows as 'Taiki Secr') without letting a
-    # short name grab a longer row: asking for 'taiki' once matched
-    # 'Taiki Secr' at 0.667, loading the wrong agenda. So:
-    #   1. an exact name wins, ignoring case;
-    #   2. otherwise a row whose displayed name is the start of the wanted one
-    #      is a truncation - take the longest such row, since 'Taiki Secr'
-    #      beats 'taiki' for 'Taiki Secretariat';
-    #   3. otherwise only a close fuzzy match, for OCR slips.
-    norm = want_name.strip().lower()
-    index, hit = None, ''
-    for i, n in readable:
-        if n.strip().lower() == norm:
-            index, hit = i, n
-            break
-    if index is None:
-        prefixes = [(len(n.strip()), i, n) for i, n in readable
-                    if n.strip() and norm.startswith(n.strip().lower())]
-        if prefixes:
-            _, index, hit = max(prefixes)
-    if index is None and readable:
-        lowered = [n.strip().lower() for _, n in readable]
-        near = find_similar_text(norm, lowered, 0.85)
-        if near:
-            pos = lowered.index(near)
-            index, hit = readable[pos]
-    if index is not None:
-        x, y = buttons[index]
-        log.info(f"Agenda '{want_name}': matched row {first + index} "
-                 f"named '{hit}' - loading it")
-        _agenda_set_phase(ctx, 'load_clicked')
-        ctx.ctrl.click(x, y, f"Load agenda '{hit}'")
-        time.sleep(1)
-        return
-    seen = getattr(detail, 'agenda_names_seen', set()) if detail is not None else set()
-    seen = set(seen) | {n for _, n in readable}
-    if detail is not None:
-        detail.agenda_names_seen = seen
-    # Walk down the list; one full pass without a hit means the name is not
-    # there. Counting names alone would never do: the row scrolled part way
-    # off the top is unreadable, so the set can sit one short forever.
-    wraps = getattr(detail, 'agenda_scan_wraps', 0) if detail is not None else 0
-    at_bottom = first + len(buttons) - 1 >= AGENDA_SLOT_COUNT
-    if wraps >= 1 or (at_bottom and len(seen) >= AGENDA_SLOT_COUNT - 1):
-        log.error(f"Agenda '{want_name}' is not in the list ({sorted(seen)}) - "
-                  "starting the run on the schedule the game has rather than "
-                  "loading the wrong agenda")
-        _agenda_set_phase(ctx, 'done')
-        ctx.ctrl.click_by_point(AGENDA_CLOSE)
-        time.sleep(1)
-        return
-    if at_bottom:
-        if detail is not None:
-            detail.agenda_scan_wraps = wraps + 1
-        log.info(f"Agenda '{want_name}': not found by the bottom - back to the top")
+    first = agenda_first_visible_row(screen)
+    if first is None:
+        # Never assume row 1 here. An unreadable scrollbar is exactly the state
+        # where the top button could be any row, so scroll up and look again;
+        # the step budget ends this if it never becomes readable.
+        log.warning("Agenda list: cannot read the scrollbar - scrolling to the top "
+                    "before loading anything")
         ctx.ctrl.swipe(x1=360, y1=500, x2=360, y2=940, duration=600, name="agenda list")
-    else:
-        log.info(f"Agenda '{want_name}': not in rows {first}.."
-                 f"{first + len(buttons) - 1} - scrolling down")
-        ctx.ctrl.swipe(x1=360, y1=950, x2=360, y2=510, duration=600, name="agenda list")
-    return
+        return
+    if first > 1:
+        log.info(f"Agenda list starts at row {first} - scrolling up to row 1")
+        ctx.ctrl.swipe(x1=360, y1=500, x2=360, y2=940, duration=600, name="agenda list")
+        return
+
+    # Row 1 is on top: its Load List is the first button down the list.
+    x, y = buttons[0]
+    # The name is read only so the log says which agenda a run actually loaded.
+    # Nothing branches on it - a bad read costs a vague log line, not a career.
+    name = (agenda_row_names(screen, buttons[:1]) or [''])[0]
+    log.info(f"Agenda: loading row 1{f' named {name!r}' if name else ''}")
+    _agenda_set_phase(ctx, 'load_clicked')
+    ctx.ctrl.click(x, y, "Load agenda row 1")
+    time.sleep(1)
 
 
 def _script_independent_training_pending(ctx: UmamusumeContext, title_pos) -> None:
@@ -408,7 +356,7 @@ def _script_agenda_overwrite(ctx: UmamusumeContext) -> None:
         ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CANCEL)
         time.sleep(1)
         return
-    log.info(f"Agenda '{_agenda_wanted_name(ctx)}': confirming the overwrite")
+    log.info("Agenda row 1: confirming the overwrite")
     _agenda_set_phase(ctx, 'loaded')
     ctx.ctrl.click_by_point(AGENDA_OVERWRITE_CONFIRM)
     time.sleep(1)
@@ -447,14 +395,13 @@ def _final_confirmation(ctx: UmamusumeContext) -> None:
     if detail is not None:
         detail.final_confirmation_tab_tries = 0
 
-    # Independent Training only: load the task's chosen race agenda before
-    # starting. The Agenda block lives on this tab, and loading is idempotent -
-    # the game replaces the user-race set, so re-applying the same slot every
-    # run does not stack races.
-    want_name = _agenda_wanted_name(ctx)
-    if want_name and on_independent and _agenda_phase(ctx) != 'done':
+    # Independent Training only: load the first saved agenda before starting.
+    # The Agenda block lives on this tab, and loading is idempotent - the game
+    # replaces the user-race set, so re-applying the same slot every run does
+    # not stack races.
+    if on_independent and _agenda_phase(ctx) != 'done':
         if _agenda_step(ctx):
-            log.info(f"Career start: loading agenda '{want_name}' before starting")
+            log.info("Career start: loading the first saved agenda before starting")
             _agenda_set_phase(ctx, 'opening')
             ctx.ctrl.click_by_point(AGENDA_EDIT)
             time.sleep(1)

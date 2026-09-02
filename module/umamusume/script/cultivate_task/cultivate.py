@@ -1229,8 +1229,6 @@ def script_main_menu(ctx: UmamusumeContext):
         detail.agenda_phase = ''
         detail.agenda_steps = 0
         detail.agenda_waits = 0
-        detail.agenda_names_seen = set()
-        detail.agenda_scan_wraps = 0
 
     # Home is recognised by the bottom nav tab, not by the CAREER button: that
     # button's art rotates with in-game events - one chibi and dumbbells one

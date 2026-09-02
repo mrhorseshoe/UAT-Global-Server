@@ -65,10 +65,6 @@ class TaskDetail:
     # The game remembers the Training Focus and Prioritized Skills the user set
     # by hand, so the bot only picks the tab and confirms.
     independent_training: bool
-    # Which "My Agendas" entry to load before each run, by the name shown on
-    # its row; empty leaves whatever schedule the game has. Matched by name
-    # because the list's order is not something the bot controls.
-    independent_agenda_name: str
 
 
 class EndTaskReason(Enum):
@@ -206,7 +202,6 @@ def build_task(task_execute_mode: TaskExecuteMode, task_type: int,
     td.spark_reroll_mode = 'and' if attachment_data.get('spark_reroll_mode') == 'and' else 'or'
     td.spark_reroll_use_carats = bool(attachment_data.get('spark_reroll_use_carats', False))
     td.independent_training = bool(attachment_data.get('independent_training', False))
-    td.independent_agenda_name = str(attachment_data.get('independent_agenda_name', '') or '').strip()
 
     ut.detail = td
     return ut

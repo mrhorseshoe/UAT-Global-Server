@@ -214,10 +214,18 @@ Deliberate limits, in case they look like bugs:
 - Trackblazer and Grand Concert are selectable only — their scenario classes
   inherit URA's parsing — so they are greyed out unless Independent Training is
   ticked. A standard career there would need its own date/training parsing.
-- Agenda selection is by **name only**. Selection by slot number existed, was
-  the thing that silently loaded the wrong agenda for fifteen careers, and was
-  removed rather than kept as a fallback. A task carrying the old numeric
-  setting loads no agenda instead of quietly loading row 1.
+- Agenda selection is **slot 1, always** (2 Sep 2026). The user copies the
+  agenda they want into the first My Agendas slot; there is no task setting.
+  Both earlier designs failed the same way - silently running the wrong
+  schedule. Picking by position clicked the top *visible* row without knowing
+  which row that was, and fifteen careers ran a four-race agenda. Picking by
+  name fixed that but added a blank state, and a task saved with the field
+  empty disabled the picker for eleven careers on the 8-race default. So the
+  rule now: `_script_my_agendas` reads the scrollbar with
+  `agenda_first_visible_row`, scrolls up until row 1 is on top, and only then
+  clicks. **An unreadable scrollbar must never be treated as row 1** - that
+  assumption is the original bug. Row names are still OCR'd, but only for the
+  log line; nothing branches on them.
 
 `'Career Complete'` (the end-of-career "Return to the home screen?" prompt) now
 has its own `TITLE` entry and always clicks Cancel. It used to ride the 0.6
